@@ -1,4 +1,6 @@
-source('load_csvs.R')
+setwd("~/Documents/nicolaus copernicus/hmwk/r/the-fried-eggs")
+require(energy)
+#source('load_csvs.R')
 
 get_yearly <- function(df){
   
@@ -50,6 +52,12 @@ test_independence <- function(s1, s2, yearly = TRUE, abs_returns = FALSE, percen
   print(chisq)
 }
 
+adv_test_independence <- function(s1, s2, yearly = TRUE, abs_returns = FALSE, percent_returns = FALSE, replicates = 199){
+  m = join_samples(s1,s2, yearly, abs_returns, percent_returns)
+  dcor.test(m$Returns.x, m$Returns.y, R=replicates)->d
+  print(d)
+}
+
 two_sample_regression <- function(sy, sx, abs_returns = FALSE, percent_returns = FALSE, yearly=TRUE){
   m = join_samples(sx, sy, yearly, abs_returns, percent_returns)
   lm <- lm(m$Returns.y ~ m$Returns.x)
@@ -57,6 +65,7 @@ two_sample_regression <- function(sy, sx, abs_returns = FALSE, percent_returns =
   print(summary)
 }
 
-test_means(dji, spx, yearly=FALSE)
-test_independence(uaa, lulu, yearly=FALSE, breaks1 = 3, breaks2 = 2)
-two_sample_regression(uaa, spx, yearly=FALSE)
+#test_means(dji, spx, yearly=FALSE)
+test_independence(spx, dji, yearly=TRUE, breaks1 = 2, breaks2 = 2)
+#adv_test_independence(uaa, lulu, yearly=TRUE, replicates = 100)
+#two_sample_regression(uaa, spx, yearly=FALSE)
