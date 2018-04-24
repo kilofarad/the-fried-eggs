@@ -36,14 +36,34 @@ ui <- pageWithSidebar(
                                                    `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
                                                    `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
                                     multiple = TRUE,
-                                    selected = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)"))),
-                               
+                                    selected = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)"),
+                                    options = list(maxItems = 2)
+                                    )
+                     ),
     
-    sliderInput(inputId = "bins",
-                label = "Number of histogram bins:",
-                min = 1,
-                max = 50,
-                value = 30),
+    radioButtons("yearly", label = "Time Interval for Returns",
+                choices = list("Daily" = FALSE, "Yearly" = TRUE)),
+                               
+    conditionalPanel('input.stocks == 1', 
+                     sliderInput(inputId = "bins",
+                                 label = "Number of histogram bins:",
+                                 min = 1,
+                                 max = 50,
+                                 value = 30)
+                     ),
+    
+    conditionalPanel('input.stocks == 2',
+                     sliderInput(inputId = "bins1",
+                                 label = "Number of histogram bins:",
+                                 min = 1,
+                                 max = 50,
+                                 value = 30),
+                     sliderInput(inputId = "bins2",
+                                 label = "Number of histogram bins:",
+                                 min = 1,
+                                 max = 50,
+                                 value = 30)
+                     ),
     
     sliderInput(inputId = "sig",
                 label = "Significance level of confidence intervals",
@@ -60,6 +80,13 @@ ui <- pageWithSidebar(
                      verbatimTextOutput("goodnessFit"),
                      verbatimTextOutput("confidenceIntMean"),
                      verbatimTextOutput("confidenceIntVar")
+                     ),
+    
+    conditionalPanel("input.stocks == 2",
+                     plotOutput("histPlot1"),
+                     plotOutput("histPlot2"),
+                     verbatimTextOutput("testMeans"),
+                     verbatimTextOutput("testIndependence")
                      )
   )
   
@@ -67,6 +94,7 @@ ui <- pageWithSidebar(
 ###DATA PRE-PROCESSING
 #READ DATA FROM CSV
 source('load_csvs.R')
+dic<-list("S&P 500 (SPX)" = spx, "Dow-Jones Industrial Average (DJI)" = dji, "NASDAQ (NDQ)" = ndq, "Tech Industry (IYW)" = iyw, "Financial Services (IYF)" = iyf, "Natural Resources (MXI)" = mxi, "Consumer Staples (XLP)" = xlp, "Utilities (XLU)" = xlu, "Dow Jones Utilities Average (DJU)" = dju, "Dick's Sporting Goods (DKS)" = dks, "Footlocker (FL)" = fl, "Lululemon (LULU)" = lulu, "Nike (NKE)" = nke, "Underarmor (UAA)" = uaa)
 
 ###SERVER LOGIC###
 server <- function(input, output, session){
@@ -88,9 +116,9 @@ server <- function(input, output, session){
            "Underarmor (UAA)" = uaa)
   })
 
-  datasetsInput <- reactive({
-    print(input$dataset)
-  })
+  datasetsInput1 <- reactive({dic[[input$datasets[1]]]})
+  datasetsInput2 <- reactive({dic[[input$datasets[2]]]})
+  
   #histogram
   output$histPlot <- renderPlot({
     dataset <- datasetInput()
@@ -101,12 +129,6 @@ server <- function(input, output, session){
          main = "Histogram of highs in selected tech stock data")
     
   })
-  
-  log_return <- function(symbol){
-    open = symbol[,'Open']
-    close = symbol[,'Close']
-    return(log(close/open))
-  }
   
   output$normPlot <- renderPlot({
     dataset <- datasetInput()
@@ -120,8 +142,8 @@ server <- function(input, output, session){
     dataset$log_return <- log_return(dataset)
     dataset$log_return -> observed
     pnorm(dataset$log_return) -> expected
-    print("Goodness of Fit for Normality Results:")
-    print(chisq.test(x = observed, p = expected))
+    cat("Goodness of Fit for Normality Results:")
+    #print(chisq.test(x = observed, p = expected))
   })
   
   output$confidenceIntMean <- renderPrint({
@@ -131,10 +153,10 @@ server <- function(input, output, session){
     length(dlr) -> n
     mlower <- mean(dlr) + qt(input$sig/2, n-1) * sqrt(var(dlr))
     mupper <- mean(dlr) - qt(input$sig/2, n-1) * sqrt(var(dlr))
-    print("Significance level:")
-    print(input$sig)
-    print("Confidence interval for mean of log returns given significance level:")
-    print(c(mlower,mupper))
+    mlower = signif(mlower,3)
+    mupper = signif(mupper,3)
+    cat(paste((1-input$sig)*100,"% confidence interval for mean of log returns:"), sep = "")
+    cat(paste('\n[',mlower,', ',mupper,']', sep =""))
     
   })
   
@@ -145,10 +167,10 @@ server <- function(input, output, session){
     length(dlr) -> n
     vlower <- ((n-1)*var(dlr))/qchisq(input$sig/2, n-1)
     vupper <- ((n-1)*var(dlr))/qchisq(1-input$sig/2, n-1)
-    print("Significance level:")
-    print(input$sig)
-    print("Confidence interval for variance of log returns given significance level:")
-    print(c(vlower,vupper))
+    vlower = signif(vlower,3)
+    vupper = signif(vupper,3)
+    cat(paste((1-input$sig)*100,"% confidence interval for variance of log returns:"), sep = "")
+    cat(paste('\n[',vlower,', ',vupper,']', sep =""))
   })
   
   output$linearRegression <- renderPlot({
@@ -173,7 +195,44 @@ server <- function(input, output, session){
     print(regression)
   })
   
+  output$histPlot1 <- renderPlot({
+    dataset <- datasetsInput1()
+    if(input$yearly) dataset = get_yearly(dataset)
+    x <- log_return(dataset)
+    bins <- seq(min(x), max(x), length.out = input$bins1 + 1)
+    hist(x, breaks = bins, col = "#75AADB", border = "white",
+         xlab = paste("Log returns for",input$datasets[1]),
+         main = paste("Histogram for log returns of",input$datasets[1]))
+    
+  })
+  
+  output$histPlot2 <- renderPlot({
+    dataset <- datasetsInput2()
+    if(input$yearly) dataset = get_yearly(dataset)
+    x <- log_return(dataset)
+    bins <- seq(min(x), max(x), length.out = input$bins2 + 1)
+    hist(x, breaks = bins, col = "#75AADB", border = "white",
+         xlab = paste("Log returns for",input$datasets[2]),
+         main = paste("Histogram for log returns of",input$datasets[2]))
+    
+  })
+  
+  output$testMeans <- renderPrint({
+    s1<-datasetsInput1()
+    s2<-datasetsInput2()
+    test_means(s1, s2, input$sig, yearly = input$yearly)
+    })
+  
+  output$testIndependence <- renderPrint({cat("Hello World")})
+  
+  output$twoSampleRegressionSummary <- renderPrint({cat("Hello World")})
+  
+  #output$twoSampleRegressionPlot <-renderPlot({})
+  #output$twoSampleResidualPlot <- renderPlot({})
 }
+
+  
+
 shinyApp(ui, server)
 
 
