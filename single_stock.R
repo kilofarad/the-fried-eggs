@@ -1,11 +1,11 @@
-#Single Stock Analysis
+#Stock Analysis
 #Statistics and Data Analysis - R Project
-runapp.r
-library(shiny)
+#runapp.r
+#library(shiny)
 #setwd(“C:/Users/weloveton/Documents/stockhistograms”)
 #runApp(host = “0.0.0.0”, port = 5050)
-
-app.r
+#
+#app.r
 
 library(shiny) #load shiny package
 ###USER INTERFACE###
@@ -16,22 +16,28 @@ ui <- pageWithSidebar(
   #SIDEBAR
   sidebarPanel(
     
+    radioButtons("stocks", label = "One or Two Stock Analysis",
+                 choices = list("One" = 1, "Two" = 2)),
+    
     #Select dataset
-    selectInput(inputId = "dataset",
-                label = "Choose a dataset:",
-                choices = c("S&P 500 (SPX)",
-                            "Dow-Jones Industrial Average (DJI)",
-                            "NASDAQ (NDQ)",
-                            "Tech Industry (IYW)",
-                            "Financian Services (IYF)",
-                            "Natural Resources (MXI)",
-                            "Consumer Staples (XLP)",
-                            "Utilities (XLU)",
-                            "Dow Jones Utilities Average (DJU)",
-                            "Nike (NKE)",
-                            "Adidas (ADS)",
-                            "Puma (PUM)",
-                            "Underarmor (UAA)")),
+    conditionalPanel("input.stocks == 1", 
+                     selectizeInput(inputId = "dataset",
+                                    label = "Choose a dataset:",
+                                    choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
+                                                   `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
+                                                   `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
+                                    selected = "S&P 500 (SPX)")
+                     ),
+    
+    conditionalPanel("input.stocks == 2",
+                     selectizeInput(inputId = "datasets",
+                                    label = "Choose two datasets:",
+                                    choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
+                                                   `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
+                                                   `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
+                                    multiple = TRUE,
+                                    selected = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)"))),
+                               
     
     sliderInput(inputId = "bins",
                 label = "Number of histogram bins:",
@@ -48,63 +54,47 @@ ui <- pageWithSidebar(
   
   #MAIN PANEL
   mainPanel(
-    
-    #Output histogram
-    
-    plotOutput("histPlot"),
-    plotOutput("normPlot"),
-    verbatimTextOutput("goodnessFit"),
-    verbatimTextOutput("confidenceIntMean"),
-    verbatimTextOutput("confidenceIntVar")
+    conditionalPanel("input.stocks == 1", 
+                     plotOutput("histPlot"),
+                     plotOutput("normPlot"),
+                     verbatimTextOutput("goodnessFit"),
+                     verbatimTextOutput("confidenceIntMean"),
+                     verbatimTextOutput("confidenceIntVar")
+                     )
   )
   
 )
 ###DATA PRE-PROCESSING
 #READ DATA FROM CSV
-#General
-sp <- read.csv('spx.csv') -> sp
-dj_ind <- read.csv('dji.csv')
-nasdaq <- read.csv('ndq.csv') 
-
-#Non-Sport 
-tech <- read.csv('tech.csv') 
-finance <- read.csv('fin.csv') 
-nat_resources <- read.csv('nat.csv')
-consumer_staples <- read.csv('stp.csv') 
-utilities <- read.csv('uti.csv') 
-dj_util <- read.csv('dju.csv')
-
-#Sport
-nike <- read.csv('nke.csv')
-adidas <- read.csv('ads_eur.csv') 
-puma <- read.csv('pum_eur.csv')
-underarmor <- read.csv('uaa.csv')
-lululemon <- read.csv('lulu.csv') 
+source('load_csvs.R')
 
 ###SERVER LOGIC###
 server <- function(input, output, session){
   datasetInput <- reactive({
     switch(input$dataset,
-           "S&P 500 (SPX)" = sp,
-           "Dow-Jones Industrial Average (DJI)" = dj_ind,
-           "NASDAQ (NDQ)" = nasdaq,
-           "Tech Industry (IYW)" = tech,
-           "Financian Services (IYF)" = finance,
-           "Natural Resources (MXI)" = nat_resources,
-           "Consumer Staples (XLP)" = consumer_staples,
-           "Utilities (XLU)" = utilities,
-           "Dow Jones Utilities Average (DJU)" = dj_util,
-           "Nike (NKE)" = nike,
-           "Adidas (ADS)" = adidas,
-           "Puma (PUM)" = puma,
-           "Underarmor (UAA)" = underarmor)
+           "S&P 500 (SPX)" = spx,
+           "Dow-Jones Industrial Average (DJI)" = dji,
+           "NASDAQ (NDQ)" = ndq,
+           "Tech Industry (IYW)" = iyw,
+           "Financian Services (IYF)" = iyf,
+           "Natural Resources (MXI)" = mxi,
+           "Consumer Staples (XLP)" = xlp,
+           "Utilities (XLU)" = xlu,
+           "Dow Jones Utilities Average (DJU)" = dju,
+           "Dick's Sporting Goods (DKS)" = dks,
+           "Footlocker (FL)" = fl,
+           "Lululemon (LULU)" = lulu,
+           "Nike (NKE)" = nke,
+           "Underarmor (UAA)" = uaa)
   })
-  
-  
+
+  datasetsInput <- reactive({
+    print(input$dataset)
+  })
   #histogram
   output$histPlot <- renderPlot({
     dataset <- datasetInput()
-    x <- dataset$high
+    x <- dataset$High
     bins <- seq(min(x), max(x), length.out = input$bins + 1)
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = "Highs in tech stock data",
@@ -113,8 +103,8 @@ server <- function(input, output, session){
   })
   
   log_return <- function(symbol){
-    open = symbol[,'open']
-    close = symbol[,'close']
+    open = symbol[,'Open']
+    close = symbol[,'Close']
     return(log(close/open))
   }
   
