@@ -8,11 +8,13 @@
 #app.r
 
 library(shiny) #load shiny package
+source('load_csvs.R')
+source('two_stock.R')
 ###USER INTERFACE###
 ui <- pageWithSidebar(
   
   #TITLE
-  headerPanel("Tech Company Stocks"),
+  headerPanel("Stock Analyses"),
   #SIDEBAR
   sidebarPanel(
     
@@ -69,7 +71,11 @@ ui <- pageWithSidebar(
                 label = "Significance level of confidence intervals",
                 min = 0.01,
                 max = 0.99,
-                value = 0.05)
+                value = 0.05),
+  
+    radioButtons(inputId = "test_choice", 
+                 label = "Select test type",
+                 choices = c("Two-sided", "Upper-bound", "Lower-bound"))
   ),
   
   #MAIN PANEL
@@ -140,37 +146,68 @@ server <- function(input, output, session){
   output$goodnessFit <- renderPrint({
     dataset <- datasetInput()
     dataset$log_return <- log_return(dataset)
-    dataset$log_return -> observed
-    pnorm(dataset$log_return) -> expected
-    cat("Goodness of Fit for Normality Results:")
+    dataset$log_return -> dlr
+    print(ks.test(dlr, 'pnorm', mean(dlr), var(dlr)**0.5))
+    #dataset$log_return -> observed
+    #pnorm(dataset$log_return) -> expected
+    #cat("Goodness of Fit for Normality Results:")
     #print(chisq.test(x = observed, p = expected))
   })
   
   output$confidenceIntMean <- renderPrint({
     dataset <- datasetInput()
+    test <- input$test_choice
     dataset$log_return <- log_return(dataset)
     dataset$log_return -> dlr
     length(dlr) -> n
-    mlower <- mean(dlr) + qt(input$sig/2, n-1) * sqrt(var(dlr))
-    mupper <- mean(dlr) - qt(input$sig/2, n-1) * sqrt(var(dlr))
-    mlower = signif(mlower,3)
-    mupper = signif(mupper,3)
-    cat(paste((1-input$sig)*100,"% confidence interval for mean of log returns:"), sep = "")
-    cat(paste('\n[',mlower,', ',mupper,']', sep =""))
-    
+    if(test == "Two-sided"){
+      mlower <- mean(dlr) + qt(input$sig/2, n-1) * sqrt(var(dlr))
+      mupper <- mean(dlr) - qt(input$sig/2, n-1) * sqrt(var(dlr))
+      mlower = signif(mlower,3)
+      mupper = signif(mupper,3)
+      cat(paste((1-input$sig)*100,"% two-sided confidence interval for mean of log returns:"), sep = "")
+      cat(paste('\n[',mlower,', ',mupper,']', sep =""))
+    }
+    else if(test == "Upper-bound"){
+      mupper <- mean(dlr) + qt(input$sig, n-1) * sqrt(var(dlr))
+      mupper = signif(mupper, 3)
+      cat(paste((1-input$sig)*100, "% upper-bound confidence interval for mean of log returns:"), sep="")
+      cat(paste('\n[-inifinity, ', mupper,']', sep=""))
+    }
+    else if(test == "Lower-bound"){
+      mlower <- mean(dlr) - qt(input$sig, n-1) * sqrt(var(dlr))
+      mlower = signif(mlower, 3)
+      cat(paste((1-input$sig)*100, "% lower-bound confidence interval for mean of log returns:"), sep="")
+      cat(paste('\n[',mlower, ', +infinity]', sep=""))
+    }
   })
   
   output$confidenceIntVar <- renderPrint({
     dataset <- datasetInput()
+    test <- input$test_choice
     dataset$log_return <- log_return(dataset)
     dataset$log_return -> dlr
     length(dlr) -> n
-    vlower <- ((n-1)*var(dlr))/qchisq(input$sig/2, n-1)
-    vupper <- ((n-1)*var(dlr))/qchisq(1-input$sig/2, n-1)
-    vlower = signif(vlower,3)
-    vupper = signif(vupper,3)
-    cat(paste((1-input$sig)*100,"% confidence interval for variance of log returns:"), sep = "")
-    cat(paste('\n[',vlower,', ',vupper,']', sep =""))
+    if(test == 'Two-sided'){
+      vlower <- ((n-1)*var(dlr))/qchisq(input$sig/2, n-1)
+      vupper <- ((n-1)*var(dlr))/qchisq(1-input$sig/2, n-1)
+      vlower = signif(vlower,3)
+      vupper = signif(vupper,3)
+      cat(paste((1-input$sig)*100,"% two-sided confidence interval for variance of log returns:"), sep = "")
+      cat(paste('\n[',vlower,', ',vupper,']', sep =""))
+    }
+    else if(test == 'Upper-bound'){
+      vupper <- ((n-1)*var(dlr))/qchisq(1-input$sig, n-1)
+      vupper = signif(vupper, 3)
+      cat(paste((1-input$sig)*100,"% upper-bound confidence interval for variance of log returns:"), sep = "")
+      cat(paste('\n[-infinity, ', vupper,']', sep=""))
+    }
+    else if(test == 'Lower-bound'){
+      vlower <- ((n-1)*var(dlr))/qchisq(input$sig, n-1)
+      vlower = signif(vlower, 3)
+      cat(paste((1-input$sig)*100,"% lower-bound confidence interval for variance of log returns:"), sep="")
+      cat(paste('\n[',vlower, ', +infinity]', sep=""))
+    }
   })
   
   output$linearRegression <- renderPlot({
