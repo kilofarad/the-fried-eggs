@@ -67,6 +67,26 @@ ui <- pageWithSidebar(
                                  value = 30)
                      ),
     
+    checkboxInput(inputId = 'merge_bins', 
+                  label = 'Merge bins dynamically to help meet minimum value requirements of the chi-squared test', 
+                  value = TRUE),
+    
+    conditionalPanel('input.merge_bins', 
+                     sliderInput(inputId = "min_bin_count",
+                                 label = "Minimum bin count",
+                                 min = 2,
+                                 max = 5,
+                                 value = 3),
+                     checkboxInput(inputId = 'show_merged_bins', 
+                                   label = 'Show the merged bins on the histogram(s)',
+                                   value = TRUE)
+                     ),
+    
+    conditionalPanel('input.stocks ==2', 
+                     checkboxInput(inputId = 'showCT', 
+                                   label = 'Show contingency table for the chi-squared test for independence', 
+                                   value = FALSE)),
+    
     sliderInput(inputId = "sig",
                 label = "Significance level of confidence intervals",
                 min = 0.01,
@@ -105,12 +125,12 @@ dic<-list("S&P 500 (SPX)" = spx, "Dow-Jones Industrial Average (DJI)" = dji, "NA
 ###SERVER LOGIC###
 server <- function(input, output, session){
   datasetInput <- reactive({
-    switch(input$dataset,
+    dataset<-switch(input$dataset,
            "S&P 500 (SPX)" = spx,
            "Dow-Jones Industrial Average (DJI)" = dji,
            "NASDAQ (NDQ)" = ndq,
            "Tech Industry (IYW)" = iyw,
-           "Financian Services (IYF)" = iyf,
+           "Financial Services (IYF)" = iyf,
            "Natural Resources (MXI)" = mxi,
            "Consumer Staples (XLP)" = xlp,
            "Utilities (XLU)" = xlu,
@@ -120,25 +140,39 @@ server <- function(input, output, session){
            "Lululemon (LULU)" = lulu,
            "Nike (NKE)" = nke,
            "Underarmor (UAA)" = uaa)
-  })
+    if(input$yearly) dataset<-get_yearly(dataset)
+    dataset$log_return <- log_return(dataset)
+    return(dataset)
+    })
 
-  datasetsInput1 <- reactive({dic[[input$datasets[1]]]})
-  datasetsInput2 <- reactive({dic[[input$datasets[2]]]})
+  datasetsInput1 <- reactive({
+    dataset = dic[[input$datasets[1]]]
+    if(input$yearly) get_yearly(dataset)
+    dataset$log_return <- log_return(dataset)
+    return(dataset)
+    })
+  
+  datasetsInput2 <- reactive({
+    dataset = dic[[input$datasets[2]]]
+    if(input$yearly) dataset<-get_yearly(dataset)
+    dataset$log_return <- log_return(dataset)
+    return(dataset)
+    })
   
   #histogram
   output$histPlot <- renderPlot({
     dataset <- datasetInput()
-    x <- dataset$High
+    x <- dataset$log_return
     bins <- seq(min(x), max(x), length.out = input$bins + 1)
+    if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
-         xlab = "Highs in tech stock data",
-         main = "Histogram of highs in selected tech stock data")
+         xlab = paste("Log returns for",input$dataset),
+         main = paste("Histogram for log returns of",input$dataset))
     
   })
   
   output$normPlot <- renderPlot({
     dataset <- datasetInput()
-    dataset$log_return <- log_return(dataset)
     qqnorm(dataset$log_return, col = "#75AADB",
            main = "Normality plot for log returns in selected tech stock data")
   })
@@ -234,9 +268,9 @@ server <- function(input, output, session){
   
   output$histPlot1 <- renderPlot({
     dataset <- datasetsInput1()
-    if(input$yearly) dataset = get_yearly(dataset)
-    x <- log_return(dataset)
+    x <- dataset$log_return
     bins <- seq(min(x), max(x), length.out = input$bins1 + 1)
+    if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[1]),
          main = paste("Histogram for log returns of",input$datasets[1]))
@@ -245,9 +279,9 @@ server <- function(input, output, session){
   
   output$histPlot2 <- renderPlot({
     dataset <- datasetsInput2()
-    if(input$yearly) dataset = get_yearly(dataset)
-    x <- log_return(dataset)
+    x <- dataset$log_return
     bins <- seq(min(x), max(x), length.out = input$bins2 + 1)
+    if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[2]),
          main = paste("Histogram for log returns of",input$datasets[2]))
@@ -260,7 +294,13 @@ server <- function(input, output, session){
     test_means(s1, s2, input$sig, yearly = input$yearly)
     })
   
-  output$testIndependence <- renderPrint({cat("Hello World")})
+  output$testIndependence <- renderPrint({
+    s1<-datasetsInput1()
+    s2<-datasetsInput2()
+    breaks1 = input$bins1
+    breaks2 = input$bins2
+    test_independence(s1, s2, yearly=input$yearly, breaks1 = breaks1, breaks2 = breaks2, merge_bins = input$merge_bins, mbc=input$min_bin_count, showCT = input$showCT)
+  })
   
   output$twoSampleRegressionSummary <- renderPrint({cat("Hello World")})
   

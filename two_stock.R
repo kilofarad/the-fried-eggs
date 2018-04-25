@@ -18,19 +18,11 @@ log_return <- function(symbol){
   return(log(close/open))
 }
 
-join_samples <- function(s1, s2, yearly){
-  if(yearly){
-    sample1 = get_yearly(s1)
-    sample1$Returns = log_return(sample1)
-    sample2 = get_yearly(s2)
-    sample2$Returns = log_return(sample2)
-    merge(sample1, sample2, by='Year')->m
-  }
-  else{
-    s1$Returns = log_return(s1)
-    s2$Returns = log_return(s2)
-    merge(s1, s2, by="Date")->m
-  }
+join_samples <- function(s1, s2, yearly){ 
+  s1$Returns = log_return(s1)
+  s2$Returns = log_return(s2)
+  if(yearly) merge(s1, s2, by="Year")->m
+  else merge(s1, s2, by="Date")->m
   return(m)
 }
 
@@ -45,11 +37,17 @@ test_means <- function(s1, s2, alpha, yearly = TRUE){
   cat(paste(signif(t$conf.int[1],3), ', ', signif(t$conf.int[2],3), ']', sep=''))
 }
 
-test_independence <- function(s1, s2, yearly = TRUE, breaks1=2, breaks2=2){
+test_independence <- function(s1, s2, yearly = TRUE, breaks1=2, breaks2=2, merge_bins = TRUE, mbc=NaN, showCT = FALSE){
   m = join_samples(s1,s2, yearly)
-  cut1 = cut(m$Returns.x, breaks=breaks1)
-  cut2 = cut(m$Returns.y, breaks=breaks2)
-  chisq.test(cut1, cut2)->chisq
+  if(merge_bins){
+    breaks1 = bin_me_daddy(m$Returns.x, breaks1, mbc)$breaks
+    breaks2 = bin_me_daddy(m$Returns.y, breaks2, mbc)$breaks
+  }
+  Stock1 = cut(m$Returns.x, breaks=breaks1)
+  Stock2 = cut(m$Returns.y, breaks=breaks2)
+  table(Stock1, Stock2) -> ContigencyTable
+  if(showCT) print(ContigencyTable)
+  chisq.test(ContigencyTable)->chisq
   print(chisq)
 }
 
@@ -67,7 +65,29 @@ two_sample_regression <- function(sy, sx, yearly=TRUE, anova = FALSE){
   if(anova) print(anova(lm))
 }
 
+bin_me_daddy <- function(log_returns, init_bin_count = 30, min_bin_value = 3){
+  bins <- seq(min(log_returns), max(log_returns), length.out = init_bin_count + 1)
+  hist(log_returns, breaks = bins, plot = FALSE) -> h
+  b = c()
+  for(x in h$counts) b = append(b, x>min_bin_value)
+  if(all(b)) return(h)
+  
+  new_breaks = c(min(log_returns))
+  running_count = 0
+  for(i in seq(init_bin_count)){
+    running_count = running_count + h$counts[i]
+    if(running_count >= min_bin_value){
+      new_breaks = append(new_breaks, h$breaks[i+1])
+      running_count = 0
+    }
+  }
+  
+  if(tail(h$breaks, n=1) %in% new_breaks) new_breaks = replace(new_breaks, length(new_breaks), tail(h$breaks, n=1))
+  if(max(log_returns) > tail(new_breaks, n = 1)) new_breaks = replace(new_breaks, length(new_breaks), max(log_returns))
+  hist(log_returns, breaks = new_breaks, plot = TRUE)
+}
+
 #test_means(dji, spx, 0.05, yearly=FALSE)
-test_independence(spx, dji, yearly=TRUE, breaks1 = 2, breaks2 = 2)
+#test_independence(spx, dji, yearly=FALSE, breaks1 = 2, breaks2 = 2)
 #adv_test_independence(uaa, lulu, yearly=TRUE, replicates = 100)
 #two_sample_regression(uaa, spx, yearly=FALSE, anova = FALSE)
