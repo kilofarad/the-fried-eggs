@@ -2,7 +2,7 @@
 require(energy)
 source('load_csvs.R')
 
-get_yearly <- function(df){
+get_yearly <- function(df){ #turn daily returns into yearly returns
   aggregate(list(df$Open,df$Week), by=list(df$Year), FUN=function(x){x[1]})->yearly_open
   aggregate(list(df$Close, df$Week), by=list(df$Year), FUN=function(x){tail(x,n=1)})->yearly_close
   colnames(yearly_close)<-c('Year', "Close", "CWeek")
@@ -12,24 +12,20 @@ get_yearly <- function(df){
   return(merge(yearly_open,yearly_close))
 }
 
-log_return <- function(symbol){
+log_return <- function(symbol){ #Calculate log returns
   open = symbol[,'Open']
   close = symbol[,'Close']
   return(log(close/open))
 }
 
 join_samples <- function(s1, s2, yearly){ 
-  s1$Returns = log_return(s1)
-  s2$Returns = log_return(s2)
-  if(yearly) merge(s1, s2, by="Year")->m
-  else merge(s1, s2, by="Date")->m
-  return(m)
+  if(yearly) merge(s1, s2, by="Year")
+  else merge(s1, s2, by="Date")
 }
 
 test_means <- function(s1, s2, alpha, yearly = TRUE){
-  m = join_samples(s1, s2, yearly)
-  t.test(m$Returns.x, m$Returns.y,paired=TRUE, conf.level = 1-alpha)->t
-  cat("Results of paired t-test:\n")
+  t.test(s1, s2,paired=TRUE, conf.level = 1-alpha)->t
+  cat(paste("Results of", t$method,'\n'))
   cat(paste('P-value: ', round(t$p.value,3)))
   if(t$p.value>alpha) cat('\nThus, we do not reject the null hypothesis that the true difference between the two means is zero.')
   else cat('\nThus, we reject the null hypothesis that the true difference between mean is zero.')
@@ -37,29 +33,32 @@ test_means <- function(s1, s2, alpha, yearly = TRUE){
   cat(paste(signif(t$conf.int[1],3), ', ', signif(t$conf.int[2],3), ']', sep=''))
 }
 
-test_independence <- function(s1, s2, yearly = TRUE, breaks1=2, breaks2=2, merge_bins = TRUE, mbc=NaN, showCT = FALSE){
-  m = join_samples(s1,s2, yearly)
+test_independence <- function(s1, s2, yearly = TRUE, breaks1=2, breaks2=2, merge_bins = TRUE, mbc=NaN, showCT = FALSE, alpha = 0.05){
   if(merge_bins){
-    breaks1 = bin_me_daddy(m$Returns.x, breaks1, mbc)$breaks
-    breaks2 = bin_me_daddy(m$Returns.y, breaks2, mbc)$breaks
+    breaks1 = bin_me_daddy(s1, breaks1, mbc)$breaks
+    breaks2 = bin_me_daddy(s2, breaks2, mbc)$breaks
   }
-  Stock1 = cut(m$Returns.x, breaks=breaks1)
-  Stock2 = cut(m$Returns.y, breaks=breaks2)
+  Stock1 = cut(s1, breaks=breaks1)
+  Stock2 = cut(s2, breaks=breaks2)
   table(Stock1, Stock2) -> ContigencyTable
   if(showCT) print(ContigencyTable)
-  chisq.test(ContigencyTable)->chisq
-  print(chisq)
+  chisq.test(ContigencyTable)->ch
+  cat(paste("Results of", ch$method,'\n'))
+  cat(paste('P-value: ', round(ch$p.value,3)))
+  if(ch$p.value>alpha) cat('\nThus, we do not reject the null hypothesis that the log returns for the two stocks are independent.')
+  else cat('\nThus, we reject the null hypothesis that the log returns for the two stocks are independent.')
 }
 
-adv_test_independence <- function(s1, s2, yearly = TRUE, replicates = 199){
-  m = join_samples(s1,s2, yearly)
-  dcor.test(m$Returns.x, m$Returns.y, R=replicates)->d
-  print(d)
+adv_test_independence <- function(s1, s2, replicates = 10, alpha = 0.05){
+  dcor.test(s1, s2, R=replicates)->d
+  cat(paste('Distance correlation coefficient:',d$statistic,'\n'))
+  cat(paste('P-value:',d$p.value))
+  if(d$p.value>alpha) cat('\nThus, we do not reject the null hypothesis that the log returns for the two stocks are not independent.')
+  else cat('\nThus, we reject the null hypothesis that the log returns for the two stocks are not independent.')
 }
 
 two_sample_regression <- function(sy, sx, yearly=TRUE, anova = FALSE){
-  m = join_samples(sx, sy, yearly)
-  lm <- lm(m$Returns.y ~ m$Returns.x)
+  lm <- lm(sy ~ sx)
   summary(lm)->summary
   print(summary)
   if(anova) print(anova(lm))

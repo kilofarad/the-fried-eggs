@@ -67,11 +67,12 @@ ui <- pageWithSidebar(
                                  value = 30)
                      ),
     
-    checkboxInput(inputId = 'merge_bins', 
-                  label = 'Merge bins dynamically to help meet minimum value requirements of the chi-squared test', 
-                  value = TRUE),
+    conditionalPanel('!input.dcor',
+                     checkboxInput(inputId = 'merge_bins', 
+                                   label = 'Merge bins dynamically to help meet minimum bin value requirements of the chi-squared test', 
+                                   value = TRUE)),
     
-    conditionalPanel('input.merge_bins', 
+    conditionalPanel('input.merge_bins && !input.dcor', 
                      sliderInput(inputId = "min_bin_count",
                                  label = "Minimum bin count",
                                  min = 2,
@@ -79,13 +80,27 @@ ui <- pageWithSidebar(
                                  value = 3),
                      checkboxInput(inputId = 'show_merged_bins', 
                                    label = 'Show the merged bins on the histogram(s)',
-                                   value = TRUE)
+                                   value = FALSE)
                      ),
     
-    conditionalPanel('input.stocks ==2', 
+    conditionalPanel('input.stocks == 2 && !input.dcor', 
                      checkboxInput(inputId = 'showCT', 
                                    label = 'Show contingency table for the chi-squared test for independence', 
                                    value = FALSE)),
+    
+    checkboxInput(inputId = 'dcor', 
+                  label = 'Perform a distance correlation test for independence (more computationally expensive)', 
+                  value = FALSE),
+    
+    conditionalPanel('input.dcor',
+                     sliderInput(inputId = 'replicates',
+                                 label = "Replicates to perform for dcor (Higher values will give a more precise p-value, but is very computationally expensive)",
+                                 min = 5,
+                                 max = 200,
+                                 value = 10)
+                    ),
+    
+    
     
     sliderInput(inputId = "sig",
                 label = "Significance level of confidence intervals",
@@ -93,9 +108,13 @@ ui <- pageWithSidebar(
                 max = 0.99,
                 value = 0.05),
   
-    radioButtons(inputId = "test_choice", 
-                 label = "Select test type",
-                 choices = c("Two-sided", "Upper-bound", "Lower-bound"))
+    conditionalPanel('input.stocks ==1',
+                     radioButtons(inputId = "test_choice", 
+                                                     label = "Select test type",
+                                                     choices = c("Two-sided", "Upper-bound", "Lower-bound")
+                                  )
+                     )
+    
   ),
   
   #MAIN PANEL
@@ -141,28 +160,27 @@ server <- function(input, output, session){
            "Nike (NKE)" = nke,
            "Underarmor (UAA)" = uaa)
     if(input$yearly) dataset<-get_yearly(dataset)
-    dataset$log_return <- log_return(dataset)
+    dataset$Returns <- log_return(dataset)
     return(dataset)
     })
 
-  datasetsInput1 <- reactive({
-    dataset = dic[[input$datasets[1]]]
-    if(input$yearly) get_yearly(dataset)
-    dataset$log_return <- log_return(dataset)
-    return(dataset)
-    })
-  
-  datasetsInput2 <- reactive({
-    dataset = dic[[input$datasets[2]]]
-    if(input$yearly) dataset<-get_yearly(dataset)
-    dataset$log_return <- log_return(dataset)
+  datasetsInput <- reactive({
+    dataset1 = dic[[input$datasets[1]]]
+    dataset2 = dic[[input$datasets[2]]]
+    if(input$yearly){
+      dataset1 = get_yearly(dataset1)
+      dataset2 = get_yearly(dataset2)
+      }
+    dataset1$Returns <- log_return(dataset1)
+    dataset2$Returns <- log_return(dataset2)
+    dataset = join_samples(dataset1, dataset2, input$yearly)
     return(dataset)
     })
   
   #histogram
   output$histPlot <- renderPlot({
     dataset <- datasetInput()
-    x <- dataset$log_return
+    x <- dataset$Returns
     bins <- seq(min(x), max(x), length.out = input$bins + 1)
     if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
@@ -173,17 +191,17 @@ server <- function(input, output, session){
   
   output$normPlot <- renderPlot({
     dataset <- datasetInput()
-    qqnorm(dataset$log_return, col = "#75AADB",
+    qqnorm(dataset$Returns, col = "#75AADB",
            main = "Normality plot for log returns in selected tech stock data")
   })
   
   output$goodnessFit <- renderPrint({
     dataset <- datasetInput()
-    dataset$log_return <- log_return(dataset)
-    dataset$log_return -> dlr
+    dataset$Returns <- log_return(dataset)
+    dataset$Returns -> dlr
     print(ks.test(dlr, 'pnorm', mean(dlr), var(dlr)**0.5))
-    #dataset$log_return -> observed
-    #pnorm(dataset$log_return) -> expected
+    #dataset$Returns -> observed
+    #pnorm(dataset$Returns) -> expected
     #cat("Goodness of Fit for Normality Results:")
     #print(chisq.test(x = observed, p = expected))
   })
@@ -191,8 +209,8 @@ server <- function(input, output, session){
   output$confidenceIntMean <- renderPrint({
     dataset <- datasetInput()
     test <- input$test_choice
-    dataset$log_return <- log_return(dataset)
-    dataset$log_return -> dlr
+    dataset$Returns <- log_return(dataset)
+    dataset$Returns -> dlr
     length(dlr) -> n
     if(test == "Two-sided"){
       mlower <- mean(dlr) + qt(input$sig/2, n-1) * sqrt(var(dlr))
@@ -219,8 +237,8 @@ server <- function(input, output, session){
   output$confidenceIntVar <- renderPrint({
     dataset <- datasetInput()
     test <- input$test_choice
-    dataset$log_return <- log_return(dataset)
-    dataset$log_return -> dlr
+    dataset$Returns <- log_return(dataset)
+    dataset$Returns -> dlr
     length(dlr) -> n
     if(test == 'Two-sided'){
       vlower <- ((n-1)*var(dlr))/qchisq(input$sig/2, n-1)
@@ -246,8 +264,8 @@ server <- function(input, output, session){
   
   output$linearRegression <- renderPlot({
     dataset <- datasetInput()
-    dataset$log_return <- log_return(dataset)
-    y <- dataset$log_return
+    dataset$Returns <- log_return(dataset)
+    y <- dataset$Returns
     length(y) -> n
     x <- c(1:n) 
     plot(y ~ x,bty="l",pch=20)
@@ -267,10 +285,10 @@ server <- function(input, output, session){
   })
   
   output$histPlot1 <- renderPlot({
-    dataset <- datasetsInput1()
-    x <- dataset$log_return
+    dataset <- datasetsInput()
+    x <- dataset$Returns.x
     bins <- seq(min(x), max(x), length.out = input$bins1 + 1)
-    if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
+    if(!input$dcor) if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[1]),
          main = paste("Histogram for log returns of",input$datasets[1]))
@@ -278,10 +296,10 @@ server <- function(input, output, session){
   })
   
   output$histPlot2 <- renderPlot({
-    dataset <- datasetsInput2()
-    x <- dataset$log_return
+    dataset <- datasetsInput()
+    x <- dataset$Returns.y
     bins <- seq(min(x), max(x), length.out = input$bins2 + 1)
-    if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
+    if(!input$dcor) if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[2]),
          main = paste("Histogram for log returns of",input$datasets[2]))
@@ -289,18 +307,25 @@ server <- function(input, output, session){
   })
   
   output$testMeans <- renderPrint({
-    s1<-datasetsInput1()
-    s2<-datasetsInput2()
-    test_means(s1, s2, input$sig, yearly = input$yearly)
+    d<-datasetsInput()
+    test_means(d$Returns.x, d$Returns.y, input$sig, yearly = input$yearly)
     })
   
   output$testIndependence <- renderPrint({
-    s1<-datasetsInput1()
-    s2<-datasetsInput2()
+    d<-datasetsInput()
+    if(input$dcor){
+      adv_test_independence(d$Returns.x, d$Returns.y, alpha = input$sig)
+    }
+    else{
     breaks1 = input$bins1
     breaks2 = input$bins2
-    test_independence(s1, s2, yearly=input$yearly, breaks1 = breaks1, breaks2 = breaks2, merge_bins = input$merge_bins, mbc=input$min_bin_count, showCT = input$showCT)
+    test_independence(d$Returns.x, d$Returns.y, 
+                      yearly=input$yearly, 
+                      breaks1 = breaks1, breaks2 = breaks2, 
+                      merge_bins = input$merge_bins, mbc=input$min_bin_count, 
+                      showCT = input$showCT, alpha = input$sig)}
   })
+
   
   output$twoSampleRegressionSummary <- renderPrint({cat("Hello World")})
   
