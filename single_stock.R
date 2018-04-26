@@ -314,7 +314,7 @@ server <- function(input, output, session){
   output$testIndependence <- renderPrint({
     d<-datasetsInput()
     if(input$dcor){
-      adv_test_independence(d$Returns.x, d$Returns.y, alpha = input$sig)
+      adv_test_independence(d$Returns.x, d$Returns.y, R = input$replicates, alpha = input$sig)
     }
     else{
     breaks1 = input$bins1
