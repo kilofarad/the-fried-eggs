@@ -53,8 +53,8 @@ adv_test_independence <- function(s1, s2, replicates = 10, alpha = 0.05){
   dcor.test(s1, s2, R=replicates)->d
   cat(paste('Distance correlation coefficient:',d$statistic,'\n'))
   cat(paste('P-value:',d$p.value))
-  if(d$p.value>alpha) cat('\nThus, we do not reject the null hypothesis that the log returns for the two stocks are not independent.')
-  else cat('\nThus, we reject the null hypothesis that the log returns for the two stocks are not independent.')
+  if(d$p.value>alpha) cat('\nThus, we do not reject the null hypothesis that the log returns for the two stocks are independent.')
+  else cat('\nThus, we reject the null hypothesis that the log returns for the two stocks are independent.')
 }
 
 two_sample_regression <- function(sy, sx, yearly=TRUE, anova = FALSE){
