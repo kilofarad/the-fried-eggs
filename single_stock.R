@@ -11,131 +11,137 @@ library(shiny) #load shiny package
 source('load_csvs.R')
 source('two_stock.R')
 ###USER INTERFACE###
-ui <- pageWithSidebar(
-  
-  #TITLE
-  headerPanel("Stock Analyses"),
-  #SIDEBAR
-  sidebarPanel(
-    
-    radioButtons("stocks", label = "One or Two Stock Analysis",
-                 choices = list("One" = 1, "Two" = 2)),
-    
-    #Select dataset
-    conditionalPanel("input.stocks == 1", 
-                     selectizeInput(inputId = "dataset",
-                                    label = "Choose a dataset:",
-                                    choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
-                                                   `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
-                                                   `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
-                                    selected = "S&P 500 (SPX)")
-                     ),
-    
-    conditionalPanel("input.stocks == 2",
-                     selectizeInput(inputId = "datasets",
-                                    label = "Choose two datasets:",
-                                    choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
-                                                   `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
-                                                   `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
-                                    multiple = TRUE,
-                                    selected = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)"),
-                                    options = list(maxItems = 2)
-                                    )
-                     ),
-    
-    radioButtons("yearly", label = "Time Interval for Returns",
-                choices = list("Daily" = FALSE, "Yearly" = TRUE)),
-                               
-    conditionalPanel('input.stocks == 1', 
-                     sliderInput(inputId = "bins",
-                                 label = "Number of histogram bins:",
-                                 min = 1,
-                                 max = 50,
-                                 value = 30)
-                     ),
-    
-    conditionalPanel('input.stocks == 2',
-                     sliderInput(inputId = "bins1",
-                                 label = "Number of histogram bins:",
-                                 min = 1,
-                                 max = 50,
-                                 value = 30),
-                     sliderInput(inputId = "bins2",
-                                 label = "Number of histogram bins:",
-                                 min = 1,
-                                 max = 50,
-                                 value = 30)
-                     ),
-    
-    conditionalPanel('!input.dcor',
-                     checkboxInput(inputId = 'merge_bins', 
-                                   label = 'Merge bins dynamically to help meet minimum bin value requirements of the chi-squared test', 
-                                   value = TRUE)),
-    
-    conditionalPanel('input.merge_bins && !input.dcor', 
-                     sliderInput(inputId = "min_bin_count",
-                                 label = "Minimum bin count",
-                                 min = 2,
-                                 max = 5,
-                                 value = 3),
-                     checkboxInput(inputId = 'show_merged_bins', 
-                                   label = 'Show the merged bins on the histogram(s)',
-                                   value = FALSE)
-                     ),
-    
-    conditionalPanel('input.stocks == 2 && !input.dcor', 
-                     checkboxInput(inputId = 'showCT', 
-                                   label = 'Show contingency table for the chi-squared test for independence', 
-                                   value = FALSE)),
-    
-    checkboxInput(inputId = 'dcor', 
-                  label = 'Perform a distance correlation test for independence (more computationally expensive)', 
-                  value = FALSE),
-    
-    conditionalPanel('input.dcor',
-                     sliderInput(inputId = 'replicates',
-                                 label = "Replicates to perform for dcor (Higher values will give a more precise p-value, but is very computationally expensive)",
-                                 min = 5,
-                                 max = 200,
-                                 value = 10)
-                    ),
-    
-    
-    
-    sliderInput(inputId = "sig",
-                label = "Significance level of confidence intervals",
-                min = 0.01,
-                max = 0.99,
-                value = 0.05),
-  
-    conditionalPanel('input.stocks ==1',
-                     radioButtons(inputId = "test_choice", 
-                                                     label = "Select test type",
-                                                     choices = c("Two-sided", "Upper-bound", "Lower-bound")
-                                  )
-                     )
-    
-  ),
-  
-  #MAIN PANEL
-  mainPanel(
-    conditionalPanel("input.stocks == 1", 
-                     plotOutput("histPlot"),
-                     plotOutput("normPlot"),
-                     verbatimTextOutput("goodnessFit"),
-                     verbatimTextOutput("confidenceIntMean"),
-                     verbatimTextOutput("confidenceIntVar")
-                     ),
-    
-    conditionalPanel("input.stocks == 2",
-                     plotOutput("histPlot1"),
-                     plotOutput("histPlot2"),
-                     verbatimTextOutput("testMeans"),
-                     verbatimTextOutput("testIndependence")
-                     )
-  )
-  
-)
+ui <- navbarPage("The Fried Eggs",
+                 tabPanel("Stock Analyses",
+                          sidebarLayout(
+                            #SIDEBAR
+                            sidebarPanel(
+                              
+                              radioButtons("stocks", label = "One or Two Stock Analysis",
+                                           choices = list("One" = 1, "Two" = 2)),
+                              
+                              #Select dataset
+                              conditionalPanel("input.stocks == 1", 
+                                               selectizeInput(inputId = "dataset",
+                                                              label = "Choose a dataset:",
+                                                              choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
+                                                                             `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
+                                                                             `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
+                                                              selected = "S&P 500 (SPX)")
+                              ),
+                              
+                              conditionalPanel("input.stocks == 2",
+                                               selectizeInput(inputId = "datasets",
+                                                              label = "Choose two datasets:",
+                                                              choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
+                                                                             `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
+                                                                             `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
+                                                              multiple = TRUE,
+                                                              selected = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)"),
+                                                              options = list(maxItems = 2)
+                                               )
+                              ),
+                              
+                              radioButtons("yearly", label = "Time Interval for Returns",
+                                           choices = list("Daily" = FALSE, "Yearly" = TRUE)),
+                              
+                              conditionalPanel('input.stocks == 1', 
+                                               sliderInput(inputId = "bins",
+                                                           label = "Number of histogram bins:",
+                                                           min = 1,
+                                                           max = 50,
+                                                           value = 30)
+                              ),
+                              
+                              conditionalPanel('input.stocks == 2',
+                                               sliderInput(inputId = "bins1",
+                                                           label = "Number of histogram bins:",
+                                                           min = 1,
+                                                           max = 50,
+                                                           value = 30),
+                                               sliderInput(inputId = "bins2",
+                                                           label = "Number of histogram bins:",
+                                                           min = 1,
+                                                           max = 50,
+                                                           value = 30)
+                              ),
+                              
+                              conditionalPanel('!input.dcor',
+                                               checkboxInput(inputId = 'merge_bins', 
+                                                             label = 'Merge bins dynamically to help meet minimum bin value requirements of the chi-squared test', 
+                                                             value = TRUE)),
+                              
+                              conditionalPanel('input.merge_bins && !input.dcor', 
+                                               sliderInput(inputId = "min_bin_count",
+                                                           label = "Minimum bin count",
+                                                           min = 2,
+                                                           max = 5,
+                                                           value = 3),
+                                               checkboxInput(inputId = 'show_merged_bins', 
+                                                             label = 'Show the merged bins on the histogram(s)',
+                                                             value = FALSE)
+                              ),
+                              
+                              conditionalPanel('input.stocks == 2 && !input.dcor', 
+                                               checkboxInput(inputId = 'showCT', 
+                                                             label = 'Show contingency table for the chi-squared test for independence', 
+                                                             value = FALSE)),
+                              
+                              checkboxInput(inputId = 'dcor', 
+                                            label = 'Perform a distance correlation test for independence (more computationally expensive)', 
+                                            value = FALSE),
+                              
+                              conditionalPanel('input.dcor',
+                                               sliderInput(inputId = 'replicates',
+                                                           label = "Replicates to perform for dcor (Higher values will give a more precise p-value, but is very computationally expensive)",
+                                                           min = 5,
+                                                           max = 200,
+                                                           value = 10)
+                              ),
+                              
+                              
+                              
+                              sliderInput(inputId = "sig",
+                                          label = "Significance level of confidence intervals",
+                                          min = 0.01,
+                                          max = 0.99,
+                                          value = 0.05),
+                              
+                              conditionalPanel('input.stocks ==1',
+                                               radioButtons(inputId = "test_choice", 
+                                                            label = "Select test type",
+                                                            choices = c("Two-sided", "Upper-bound", "Lower-bound")
+                                               )
+                              )
+                              
+                            ),
+                            
+                            #MAIN PANEL
+                            mainPanel(
+                              conditionalPanel("input.stocks == 1", 
+                                               plotOutput("histPlot"),
+                                               plotOutput("normPlot"),
+                                               verbatimTextOutput("goodnessFit"),
+                                               verbatimTextOutput("confidenceIntMean"),
+                                               verbatimTextOutput("confidenceIntVar")
+                              ),
+                              
+                              conditionalPanel("input.stocks == 2",
+                                               plotOutput("histPlot1"),
+                                               plotOutput("histPlot2"),
+                                               verbatimTextOutput("testMeans"),
+                                               verbatimTextOutput("testIndependence")
+                              )
+                            )
+                          )
+                          ),
+                  tabPanel('Sports Analysis',
+                           sidebarLayout(sidebarPanel(),
+                                         mainPanel()
+                                         )
+                           )
+                 )
+
 ###DATA PRE-PROCESSING
 #READ DATA FROM CSV
 source('load_csvs.R')
