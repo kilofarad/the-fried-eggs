@@ -540,9 +540,9 @@ server <- function(input, output, session){
     hist(d[,"Returns"], breaks = bins, plot = F)->h
     hist(a,  breaks = bins, col=rgb(0,0,1,1/4), ylim = c(0,max(h$counts)),
          xlab = paste("Annual Log Returns for",input$sbdataset),
-         main = "Annual Log Returns by League of SuperBowl Victor")
+         main = "Annual Log Returns by League of Super Bowl Victor")
     hist(n, breaks = bins, col=rgb(1,0,0,1/4), add = T)
-    legend('topleft',c('NFL Superbowl Victory','AFL Superbowl Victory'),
+    legend('topleft',c('NFL Super Bowl Victory','AFL Super Bowl Victory'),
            fill = rgb(1:0,0,0:1,0.4), bty = 'n',
            border = NA)
   })
@@ -560,7 +560,7 @@ server <- function(input, output, session){
     summary(reg)$r.squared ->r2
     confint(reg, level = (input$sbconf/100)) -> conf
     cat(paste('Least Squares Regression Formula: y =',signif(reg$coefficients[2],3), 'x_1 +',signif(reg$coefficients[3],3),'x_2 +',signif(reg$coefficients[1],3),
-              '\nR-squared:',signif(r2,3)),'\nWhere x_1 is the point difference in the Superbowl and x_2 is 1 if an NFL team won, or 0 if an AFL team won.',
+              '\nR-squared:',signif(r2,3)),'\nWhere x_1 is the point difference in the Super Bowl and x_2 is 1 if an NFL team won, or 0 if an AFL team won.',
         paste('\n\n',input$sbconf,'% Confidence Intervals:\nSlope for Point Difference: [',signif(conf[2,1],3),', ',signif(conf[2,2],3),
               ']\nSlope for NFL Indicator: [', signif(conf[3,1],3),', ',signif(conf[3,2],3),
               ']\nIntercept: [',signif(conf[1,1],3),', ',signif(conf[1,2],3),']',sep = ""))
@@ -571,12 +571,12 @@ server <- function(input, output, session){
     plot(reg$model[reg$model$dummy_bool,2], reg$model[reg$model$dummy_bool,1],
          col = rgb(1,0,0,1),
          main = 'Regression data with least-squares regression line',
-         xlab = "Point Difference in SuperBowl",
+         xlab = "Point Difference in Super Bowl",
          ylab = "Annual Log Returns of Selected Index/Stock")
     points(reg$model[!(reg$model$dummy_bool),2], reg$model[!(reg$model$dummy_bool),1], col = rgb(0,0,1,1))
     abline(a = (reg$coefficients[1] + reg$coefficients[3]), b = reg$coefficients[2], lty=1, lwd=2, col = rgb(1,0.25, 0.25, 1))
     abline(a = reg$coefficients[1], b = reg$coefficients[2], lty=1, lwd=2, col = rgb(0.25,0.25, 1, 1))
-    legend('bottomright',c('NFL Superbowl Victory','AFL Superbowl Victory'),
+    legend('bottomright',c('NFL Super Bowl Victory','AFL Super Bowl Victory'),
            fill = rgb(1:0,0,0:1,0.4), bty = 'n',
            border = NA)
     abline(h=0)
@@ -586,11 +586,11 @@ server <- function(input, output, session){
     sbreg()->reg
     plot(reg$model[reg$model$dummy_bool,2],reg$residuals[reg$model$dummy_bool],
          main = 'Residual Plots for Linear Regression',
-         xlab = "Point Difference in SuperBowl",
+         xlab = "Point Difference in Super Bowl",
          ylab = 'Regression Residuals', col = rgb(1,0,0,1))
     points(reg$model[!(reg$model$dummy_bool),2], reg$residuals[!(reg$model$dummy_bool)], col = rgb(0,0,1,1))
     abline(h=0)
-    legend('bottomright',c('NFL Superbowl Victory','AFL Superbowl Victory'),
+    legend('bottomright',c('NFL Super Bowl Victory','AFL Super Bowl Victory'),
            fill = rgb(1:0,0,0:1,0.4), bty = 'n',
            border = NA)
   })
