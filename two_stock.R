@@ -96,7 +96,7 @@ sb_test_independence <- function(dataset, alpha){
   table(dataset$BorB, dataset$Winning.Conference) -> ContingencyTable
   print(ContingencyTable)
   chisq.test(ContingencyTable)->c
-  cat(paste("Results of", c$method,'\n'))
+  cat(paste("Chi-squared contingency table test (", c$method,')\n',sep=''))
   cat(paste('P-value: ', round(c$p.value,3)))
 }
 

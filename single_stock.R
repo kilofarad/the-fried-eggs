@@ -79,39 +79,36 @@ ui <- navbarPage("The Fried Eggs",
                                                              label = 'Show contingency table for the chi-squared test for independence', 
                                                              value = FALSE)),
                               
-                                               conditionalPanel('input.stocks == 2 && input.tab_selected == 2',
-                                                              checkboxInput(inputId = 'dcor', 
-                                                                            label = 'Perform a distance correlation test for independence (not recommended for daily data)', 
-                                                                            value = FALSE)),
+                              conditionalPanel('input.stocks == 2 && input.tab_selected == 2',
+                                            checkboxInput(inputId = 'dcor', 
+                                                          label = 'Perform a distance correlation test for independence (not recommended for daily data)', 
+                                                          value = FALSE)),
 
-                                                conditionalPanel('input.dcor && input.tab_selected == 2',
-                                                               sliderInput(inputId = 'replicates',
-                                                                            label = "Replicates to perform for distance correlation test (Higher values will give a more precise p-value)",
-                                                                            min = 5,
-                                                                            max = 300,
-                                                                            value = 100)),
+                              conditionalPanel('input.dcor && input.tab_selected == 2',
+                                             sliderInput(inputId = 'replicates',
+                                                          label = "Replicates to perform for distance correlation test (Higher values will give a more precise p-value)",
+                                                          min = 5,
+                                                          max = 300,
+                                                          value = 100)),
                               
-                              
-                              
-                              sliderInput(inputId = "sig",
-                                          label = "Significance level of confidence intervals",
-                                          min = 0.005,
-                                          max = 0.10,
-                                          value = 0.05),
+                              conditionalPanel('input.tab_selected != 1',
+                                               sliderInput(inputId = "sig",
+                                                           label = "Significance level of confidence intervals",
+                                                           min = 0.005,
+                                                           max = 0.10,
+                                                           value = 0.05)),
                               
                               conditionalPanel('input.stocks == 1 && input.tab_selected == 2',
                                                radioButtons(inputId = "test_choice", 
                                                             label = "Select test type",
-                                                            choices = c("Two-sided", "Upper-bound", "Lower-bound")
-                                               )
-                              )
+                                                            choices = c("Two-sided", "Upper-bound", "Lower-bound")))
                               
                             ),
                             
                             #MAIN PANEL
                             mainPanel(
                               tabsetPanel(
-                                tabPanel('Plots', value = 1,
+                                tabPanel('Charts', value = 1,
                                          conditionalPanel("input.stocks == 1",
                                                           plotOutput("histPlot"),
                                                           plotOutput("normPlot")
