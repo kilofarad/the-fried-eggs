@@ -11,6 +11,7 @@ library(shiny) #load shiny package
 
 source('load_csvs.R')
 source('two_stock.R')
+source('single_stock.R')
 
 ###USER INTERFACE###
 ui <- navbarPage(title = "The Fried Eggs",
@@ -266,77 +267,17 @@ server <- function(input, output, session){
   
   output$goodnessFit <- renderPrint({
     dataset <- datasetInput()
-    x <- dataset$Returns
-    bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    if(input$tab_selected == 2) binned_stocks = bin_me_daddy(x, input$bins1, input$min_bin_count)
-    
-    num_rows <- length(binned_stocks$counts)
-    cumulative_probs <- pnorm(binned_stocks$breaks, mean = mean(x), sd = sd(x))
-    cumulative_probs[1] <- 0
-    cumulative_probs[num_rows+1] <- 1
-    
-    non_cumulative_probs = diff(cumulative_probs)
-    
-    goodnessOfFit<- chisq.test(binned_stocks$counts, p=non_cumulative_probs, simulate.p.value=FALSE)
-    cat(paste('Goodness of Fit Results for Normal Distribution:\n'),sep="")
-    print(goodnessOfFit)
-  
+    results <- goodness_of_fit(dataset, input$bins, input$min_bin_count, input$tab_selected)
   })
   
   output$confidenceIntMean <- renderPrint({
     dataset <- datasetInput()
-    test <- input$test_choice
-    dataset$Returns <- log_return(dataset)
-    dataset$Returns -> dlr
-    length(dlr) -> n
-    if(test == "Two-sided"){
-      mlower <- mean(dlr) + qt(input$sig/2, n-1) * sqrt(var(dlr))
-      mupper <- mean(dlr) - qt(input$sig/2, n-1) * sqrt(var(dlr))
-      mlower = signif(mlower,3)
-      mupper = signif(mupper,3)
-      cat(paste((1-input$sig)*100,"% two-sided confidence interval for mean of log returns:"), sep = "")
-      cat(paste('\n[',mlower,', ',mupper,']', sep =""))
-    }
-    else if(test == "Upper-bound"){
-      mupper <- mean(dlr) + qt(input$sig, n-1) * sqrt(var(dlr))
-      mupper = signif(mupper, 3)
-      cat(paste((1-input$sig)*100, "% upper-bound confidence interval for mean of log returns:"), sep="")
-      cat(paste('\n[-inifinity, ', mupper,']', sep=""))
-    }
-    else if(test == "Lower-bound"){
-      mlower <- mean(dlr) - qt(input$sig, n-1) * sqrt(var(dlr))
-      mlower = signif(mlower, 3)
-      cat(paste((1-input$sig)*100, "% lower-bound confidence interval for mean of log returns:"), sep="")
-      cat(paste('\n[',mlower, ', +infinity]', sep=""))
-    }
+    results <- confidence_interval_mean(dataset, input$test_choice, input$sig)
   })
   
   output$confidenceIntVar <- renderPrint({
     dataset <- datasetInput()
-    test <- input$test_choice
-    dataset$Returns <- log_return(dataset)
-    dataset$Returns -> dlr
-    length(dlr) -> n
-    if(test == 'Two-sided'){
-      vlower <- ((n-1)*var(dlr))/qchisq(input$sig/2, n-1)
-      vupper <- ((n-1)*var(dlr))/qchisq(1-input$sig/2, n-1)
-      vlower = signif(vlower,3)
-      vupper = signif(vupper,3)
-      cat(paste((1-input$sig)*100,"% two-sided confidence interval for variance of log returns:"), sep = "")
-      cat(paste('\n[',vlower,', ',vupper,']', sep =""))
-    }
-    else if(test == 'Upper-bound'){
-      vupper <- ((n-1)*var(dlr))/qchisq(1-input$sig, n-1)
-      vupper = signif(vupper, 3)
-      cat(paste((1-input$sig)*100,"% upper-bound confidence interval for variance of log returns:"), sep = "")
-      cat(paste('\n[-infinity, ', vupper,']', sep=""))
-    }
-    else if(test == 'Lower-bound'){
-      vlower <- ((n-1)*var(dlr))/qchisq(input$sig, n-1)
-      vlower = signif(vlower, 3)
-      cat(paste((1-input$sig)*100,"% lower-bound confidence interval for variance of log returns:"), sep="")
-      cat(paste('\n[',vlower, ', +infinity]', sep=""))
-    }
+    results <- confidence_interval_var(dataset, input$test_choice, input$sig)
   })
   
   slr <- reactive({
@@ -357,14 +298,11 @@ server <- function(input, output, session){
     length(y) -> n
     x <- c(1:n)
     reg <- lm(y ~ x, data=dataset)
-    #summary(reg) -> summary
-    #print(summary)
     plot(reg$model[,2], reg$model[,1],
          main = 'Regression data with least-squares regression line',
          xlab = 'Time',
          ylab = input$dataset)
     abline(reg, lty=1, lwd=2)
-    #summary(linearMod)
   })
   
   output$oneSampleResidualRegression <- renderPlot({
