@@ -247,73 +247,26 @@ server <- function(input, output, session){
     dataset <- datasetInput()
     x <- dataset$Returns
     bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    if(input$tab_selected == 2) binned = bin_me_daddy(x, input$bins1, input$min_bin_count)
+    if(input$tab_selected == 2) p1 = bin_me_daddy(x, input$bins1, input$min_bin_count)
     
-    bins <- binned$breaks
-    observed_freq <- binned$counts
-    print(observed_freq)
-    n <- sum(observed_freq)
-    
-    length(bins) -> num_rows
-    
-    #x_mean <- mean(bins)
-    #x_sd <- sd(bins)
-    x_mean <- 0
-    k <- 1
-    while (k < num_rows){
-      #print(x_mean)
-      x_mean <- x_mean + (bins[k] * observed_freq[k])
-      k <- k + 1
-    }
-    x_mean <- x_mean / num_rows
-    
-    x_sd <- 0
-    k <- 1
-    while (k < num_rows){
-      x_sd <- x_sd + ((bins[k] * observed_freq[k]) - x_mean)**2
-      k <- k + 1
-    }
-    
-    x_sd <- (x_sd / (num_rows - 1))**0.5
-    
-    print(x_mean)
-    print(x_sd)
-    
-    pnorm(bins, mean=x_mean, sd=x_sd) -> cumulative_probs
+    num_rows <- length(p1$counts)
+    cumulative_probs <- pnorm(p1$breaks, mean = mean(x), sd = sd(x))
     
     remove_cumulative <- 2
-
+    
     non_cumulative_probs <- cumulative_probs
-    print(num_rows)
-
+    
     while(remove_cumulative < num_rows){
       non_cumulative_probs[remove_cumulative] <- cumulative_probs[remove_cumulative] - cumulative_probs[remove_cumulative-1]
       remove_cumulative <- remove_cumulative + 1
     }
     non_cumulative_probs[num_rows] <- 1 - cumulative_probs[num_rows-1]
+    non_cumulative_probs <- non_cumulative_probs[-length(non_cumulative_probs)]
     
-    print(sum(non_cumulative_probs))
+    a <- chisq.test(p1$counts, p=non_cumulative_probs, simulate.p.value=TRUE)
     
-    non_cumulative_probs*n -> expected_freq
-    i <- 1
-    goodness_sum <- 0
-    
-    while(i < num_rows){
-      goodness_sum <- goodness_sum + (((observed_freq[i] - expected_freq[i])**2)/expected_freq[i])
-      i <- i+1
-    }
-    
-    degrees_of_freedom <- num_rows - 2 - 1 #2 parameters estimated: mean and standard deviation
-    chi_square <- qchisq(input$sig, degrees_of_freedom)
-    cat(paste("Test Statistic: ",goodness_sum),sep="")
-    cat(paste("\nReferenced Chi: ",chi_square), sep="")
-    if(goodness_sum < chi_square){
-      cat(paste("\nFail to reject the null hypothesis. There is not enough sufficient evidence that the data is not normal."))
-    }
-    else{
-      cat(paste("\nReject the null hypothesis. There is sufficient evidence that the data is not normal."))
-    }
-
+    print(a)
+  
   })
   
   output$confidenceIntMean <- renderPrint({
