@@ -251,25 +251,54 @@ server <- function(input, output, session){
     
     bins <- binned$breaks
     observed_freq <- binned$counts
+    print(observed_freq)
     n <- sum(observed_freq)
-    
-    x_mean <- mean(x)
-    x_sd <- sd(x)
-    print(x_mean)
-    print(x_sd)
-    pnorm(bins, mean=x_mean, sd=x_sd) -> probabilities
-    print(probabilities)
-    print(n)
-    probabilities*n -> expected_freq
     
     length(bins) -> num_rows
     
+    #x_mean <- mean(bins)
+    #x_sd <- sd(bins)
+    x_mean <- 0
+    k <- 1
+    while (k < num_rows){
+      #print(x_mean)
+      x_mean <- x_mean + (bins[k] * observed_freq[k])
+      k <- k + 1
+    }
+    x_mean <- x_mean / num_rows
+    
+    x_sd <- 0
+    k <- 1
+    while (k < num_rows){
+      x_sd <- x_sd + ((bins[k] * observed_freq[k]) - x_mean)**2
+      k <- k + 1
+    }
+    
+    x_sd <- (x_sd / (num_rows - 1))**0.5
+    
+    print(x_mean)
+    print(x_sd)
+    
+    pnorm(bins, mean=x_mean, sd=x_sd) -> cumulative_probs
+    
+    remove_cumulative <- 2
+
+    non_cumulative_probs <- cumulative_probs
+    print(num_rows)
+
+    while(remove_cumulative < num_rows){
+      non_cumulative_probs[remove_cumulative] <- cumulative_probs[remove_cumulative] - cumulative_probs[remove_cumulative-1]
+      remove_cumulative <- remove_cumulative + 1
+    }
+    non_cumulative_probs[num_rows] <- 1 - cumulative_probs[num_rows-1]
+    
+    print(sum(non_cumulative_probs))
+    
+    non_cumulative_probs*n -> expected_freq
     i <- 1
     goodness_sum <- 0
     
     while(i < num_rows){
-      print(observed_freq[i])
-      print(expected_freq[i])
       goodness_sum <- goodness_sum + (((observed_freq[i] - expected_freq[i])**2)/expected_freq[i])
       i <- i+1
     }
