@@ -16,7 +16,6 @@ ui <- navbarPage("The Fried Eggs",
                           sidebarLayout(
                             #SIDEBAR
                             sidebarPanel(
-                              
                               radioButtons("stocks", label = "One or Two Stock Analysis",
                                            choices = list("One" = 1, "Two" = 2)),
                               
@@ -42,72 +41,65 @@ ui <- navbarPage("The Fried Eggs",
                                                )
                               ),
                               
-                              radioButtons("yearly", label = "Time Interval for Returns",
-                                           choices = list("Daily" = FALSE, "Yearly" = TRUE)),
+                              radioButtons(inputId = "yearly", label = "Time Interval for Returns",
+                                           choices = list("Daily" = FALSE, "Yearly" = TRUE),
+                                           selected = TRUE),
                               
-                              conditionalPanel('input.stocks == 1', 
+                              conditionalPanel('input.stocks == 1 && input.tab_selected != 3', 
                                                sliderInput(inputId = "bins",
-                                                           label = "Number of histogram bins:",
+                                                           label = "Number of bins:",
                                                            min = 1,
                                                            max = 50,
                                                            value = 30)
                               ),
                               
-                              conditionalPanel('input.stocks == 2',
+                              conditionalPanel('input.stocks == 2 && input.tab_selected != 3 && !input.dcor',
                                                sliderInput(inputId = "bins1",
-                                                           label = "Number of histogram bins:",
+                                                           label = "Number of bins for stock 1:",
                                                            min = 1,
                                                            max = 50,
                                                            value = 30),
                                                sliderInput(inputId = "bins2",
-                                                           label = "Number of histogram bins:",
+                                                           label = "Number of bins for stock 2:",
                                                            min = 1,
                                                            max = 50,
                                                            value = 30)
                               ),
                               
-                              conditionalPanel('!input.dcor',
-                                               checkboxInput(inputId = 'merge_bins', 
-                                                             label = 'Merge bins dynamically to help meet minimum bin value requirements of the chi-squared test', 
-                                                             value = TRUE)),
-                              
-                              conditionalPanel('input.merge_bins && !input.dcor', 
+                              conditionalPanel('!input.dcor && input.tab_selected == 2', 
                                                sliderInput(inputId = "min_bin_count",
                                                            label = "Minimum bin count",
                                                            min = 2,
                                                            max = 5,
-                                                           value = 3),
-                                               checkboxInput(inputId = 'show_merged_bins', 
-                                                             label = 'Show the merged bins on the histogram(s)',
-                                                             value = FALSE)
-                              ),
+                                                           value = 3)),
                               
-                              conditionalPanel('input.stocks == 2 && !input.dcor', 
+                              
+                              conditionalPanel('input.stocks == 2 && !input.dcor && input.tab_selected == 2', 
                                                checkboxInput(inputId = 'showCT', 
                                                              label = 'Show contingency table for the chi-squared test for independence', 
                                                              value = FALSE)),
                               
-                              checkboxInput(inputId = 'dcor', 
-                                            label = 'Perform a distance correlation test for independence (more computationally expensive)', 
-                                            value = FALSE),
-                              
-                              conditionalPanel('input.dcor',
-                                               sliderInput(inputId = 'replicates',
-                                                           label = "Replicates to perform for dcor (Higher values will give a more precise p-value, but is very computationally expensive)",
-                                                           min = 5,
-                                                           max = 200,
-                                                           value = 10)
-                              ),
+                                               conditionalPanel('input.stocks == 2 && input.tab_selected == 2',
+                                                              checkboxInput(inputId = 'dcor', 
+                                                                            label = 'Perform a distance correlation test for independence (not recommended for daily data)', 
+                                                                            value = FALSE)),
+
+                                                conditionalPanel('input.dcor && input.tab_selected == 2',
+                                                               sliderInput(inputId = 'replicates',
+                                                                            label = "Replicates to perform for distance correlation test (Higher values will give a more precise p-value)",
+                                                                            min = 5,
+                                                                            max = 300,
+                                                                            value = 100)),
                               
                               
                               
                               sliderInput(inputId = "sig",
                                           label = "Significance level of confidence intervals",
-                                          min = 0.01,
-                                          max = 0.99,
+                                          min = 0.005,
+                                          max = 0.10,
                                           value = 0.05),
                               
-                              conditionalPanel('input.stocks ==1',
+                              conditionalPanel('input.stocks == 1 && input.tab_selected == 2',
                                                radioButtons(inputId = "test_choice", 
                                                             label = "Select test type",
                                                             choices = c("Two-sided", "Upper-bound", "Lower-bound")
@@ -118,29 +110,57 @@ ui <- navbarPage("The Fried Eggs",
                             
                             #MAIN PANEL
                             mainPanel(
-                              conditionalPanel("input.stocks == 1", 
-                                               plotOutput("histPlot"),
-                                               plotOutput("normPlot"),
-                                               verbatimTextOutput("goodnessFit"),
-                                               verbatimTextOutput("confidenceIntMean"),
-                                               verbatimTextOutput("confidenceIntVar")
-                              ),
-                              
-                              conditionalPanel("input.stocks == 2",
-                                               plotOutput("histPlot1"),
-                                               plotOutput("histPlot2"),
-                                               verbatimTextOutput("testMeans"),
-                                               verbatimTextOutput("testIndependence")
+                              tabsetPanel(
+                                tabPanel('Plots', value = 1,
+                                         conditionalPanel("input.stocks == 1",
+                                                          plotOutput("histPlot"),
+                                                          plotOutput("normPlot")
+                                                          ),
+                                         conditionalPanel("input.stocks == 2",
+                                                          plotOutput("histPlot1"), plotOutput("histPlot2")
+                                         )
+                                ),
+                                tabPanel('Hypothesis Tests', value = 2,
+                                         conditionalPanel("input.stocks == 1",
+                                                          verbatimTextOutput("goodnessFit"),
+                                                          verbatimTextOutput("confidenceIntMean"),
+                                                          verbatimTextOutput("confidenceIntVar")
+                                                          ),
+                                        conditionalPanel("input.stocks == 2",
+                                                         verbatimTextOutput("testMeans"),
+                                                         conditionalPanel('!input.dcor',verbatimTextOutput("testIndependence")),
+                                                         conditionalPanel('!input.dcor',plotOutput("histPlot1_1"), plotOutput("histPlot2_1")),
+                                                         conditionalPanel('input.dcor',verbatimTextOutput("advtestIndependence"))
+                                                  )
+                                ),
+                                tabPanel('Regression', value = 3,
+                                         conditionalPanel("input.stocks == 1",
+                                                          plotOutput("linearRegression")
+                                         ),
+                                         conditionalPanel("input.stocks == 2",
+                                                          verbatimTextOutput("twoSampleRegressionSummary"),
+                                                          plotOutput("twoSampleRegressionPlot"),
+                                                          plotOutput("twoSampleResidualPlot")
+                                         )
+                                ),
+                                id = "tab_selected"
                               )
                             )
                           )
                           ),
                   tabPanel('Sports Analysis',
-                           sidebarLayout(sidebarPanel(),
-                                         mainPanel()
+                           sidebarLayout(sidebarPanel(selectizeInput(inputId = "sbdataset",
+                                                                     label = "Choose a dataset:",
+                                                                     choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
+                                                                                    `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
+                                                                                    `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
+                                                                     selected = "S&P 500 (SPX)")
+                                                      ),
+                                        
+                                         mainPanel(verbatimTextOutput("sbtestIndependence"))
                                          )
                            )
-                 )
+)
 
 ###DATA PRE-PROCESSING
 #READ DATA FROM CSV
@@ -169,6 +189,27 @@ server <- function(input, output, session){
     dataset$Returns <- log_return(dataset)
     return(dataset)
     })
+  
+  sbdatasetInput <- reactive({
+    dataset<-switch(input$sbdataset,
+                    "S&P 500 (SPX)" = spx,
+                    "Dow-Jones Industrial Average (DJI)" = dji,
+                    "NASDAQ (NDQ)" = ndq,
+                    "Tech Industry (IYW)" = iyw,
+                    "Financial Services (IYF)" = iyf,
+                    "Natural Resources (MXI)" = mxi,
+                    "Consumer Staples (XLP)" = xlp,
+                    "Utilities (XLU)" = xlu,
+                    "Dow Jones Utilities Average (DJU)" = dju,
+                    "Dick's Sporting Goods (DKS)" = dks,
+                    "Footlocker (FL)" = fl,
+                    "Lululemon (LULU)" = lulu,
+                    "Nike (NKE)" = nke,
+                    "Underarmor (UAA)" = uaa)
+    dataset<-get_yearly(dataset)
+    dataset$Returns <- log_return(dataset)
+    return(sb_join(dataset))
+  })
 
   datasetsInput <- reactive({
     dataset1 = dic[[input$datasets[1]]]
@@ -188,7 +229,7 @@ server <- function(input, output, session){
     dataset <- datasetInput()
     x <- dataset$Returns
     bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins, input$min_bin_count)$breaks
+    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$dataset),
          main = paste("Histogram for log returns of",input$dataset))
@@ -268,7 +309,7 @@ server <- function(input, output, session){
     }
   })
   
-  output$linearRegression <- renderPlot({
+  slr <- reactive({
     dataset <- datasetInput()
     dataset$Returns <- log_return(dataset)
     y <- dataset$Returns
@@ -276,7 +317,11 @@ server <- function(input, output, session){
     x <- c(1:n) 
     plot(y ~ x,bty="l",pch=20)
     regression<-lm(y ~ x)
-    
+    return(regression)
+  })
+  
+  output$linearRegression <- renderPlot({
+    regression<-slr()
     abline(regression, lty=1, lwd=2)
     plot(resid(regression))
     
@@ -294,7 +339,7 @@ server <- function(input, output, session){
     dataset <- datasetsInput()
     x <- dataset$Returns.x
     bins <- seq(min(x), max(x), length.out = input$bins1 + 1)
-    if(!input$dcor) if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
+    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[1]),
          main = paste("Histogram for log returns of",input$datasets[1]))
@@ -305,7 +350,29 @@ server <- function(input, output, session){
     dataset <- datasetsInput()
     x <- dataset$Returns.y
     bins <- seq(min(x), max(x), length.out = input$bins2 + 1)
-    if(!input$dcor) if(input$merge_bins) if(input$show_merged_bins) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
+    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
+    hist(x, breaks = bins, col = "#75AADB", border = "white",
+         xlab = paste("Log returns for",input$datasets[2]),
+         main = paste("Histogram for log returns of",input$datasets[2]))
+    
+  })
+
+  output$histPlot1_1 <- renderPlot({
+    dataset <- datasetsInput()
+    x <- dataset$Returns.x
+    bins <- seq(min(x), max(x), length.out = input$bins1 + 1)
+    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
+    hist(x, breaks = bins, col = "#75AADB", border = "white",
+         xlab = paste("Log returns for",input$datasets[1]),
+         main = paste("Histogram for log returns of",input$datasets[1]))
+    
+  })
+  
+  output$histPlot2_1 <- renderPlot({
+    dataset <- datasetsInput()
+    x <- dataset$Returns.y
+    bins <- seq(min(x), max(x), length.out = input$bins2 + 1)
+    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[2]),
          main = paste("Histogram for log returns of",input$datasets[2]))
@@ -319,24 +386,57 @@ server <- function(input, output, session){
   
   output$testIndependence <- renderPrint({
     d<-datasetsInput()
-    if(input$dcor){
-      adv_test_independence(d$Returns.x, d$Returns.y, replicates = input$replicates, alpha = input$sig)
-    }
-    else{
     breaks1 = input$bins1
     breaks2 = input$bins2
     test_independence(d$Returns.x, d$Returns.y, 
                       yearly=input$yearly, 
                       breaks1 = breaks1, breaks2 = breaks2, 
-                      merge_bins = input$merge_bins, mbc=input$min_bin_count, 
-                      showCT = input$showCT, alpha = input$sig)}
+                      merge_bins = TRUE, mbc=input$min_bin_count, 
+                      showCT = input$showCT, alpha = input$sig)
+  })
+  
+  output$advtestIndependence <- renderPrint({
+    d<-datasetsInput()
+    adv_test_independence(d$Returns.x, d$Returns.y, replicates = input$replicates, alpha = input$sig)
   })
 
+  reactive({
+    d <- datasetsInput()
+    lm(d$Returns.y ~ d$Returns.x) -> lm
+    return(lm)
+    }) -> tsreg
   
-  output$twoSampleRegressionSummary <- renderPrint({cat("Hello World")})
+  output$twoSampleRegressionSummary <- renderPrint({
+    tsreg()->reg
+    summary(reg)$r.squared ->r2
+    confint(reg, level = (1-input$sig)) -> conf
+    cat(paste('Least Squares Regression Formula: y =',signif(reg$coefficients[2],3), 'x +',signif(reg$coefficients[1],3),
+              '\nR-squared:',signif(r2,3),'\nwhere y represents',input$datasets[1],'and x represents',input$datasets[2],
+              paste('\n\n',100*(1-input$sig),'% Confidence Intervals:\nSlope: [',signif(conf[2,1],3),', ',signif(conf[2,2],3),']\nIntercept: [',signif(conf[1,1],3),', ',signif(conf[1,2],3),']',sep = "")))
+  })
   
-  #output$twoSampleRegressionPlot <-renderPlot({})
-  #output$twoSampleResidualPlot <- renderPlot({})
+  output$twoSampleRegressionPlot <-renderPlot({
+    tsreg()->reg
+    plot(reg$model[,2], reg$model[,1],
+         main = 'Regression data with least-squares regression line',
+         xlab = input$datasets[1],
+         ylab = input$datasets[2])
+    abline(reg, lty=1, lwd=2)
+  })
+  
+  output$twoSampleResidualPlot <- renderPlot({
+    tsreg()->reg
+    plot(reg$model[,2],reg$residuals,
+         main = 'Residual Plots for Linear Regression',
+         xlab = input$datasets[1],
+         ylab = 'Regression Residuals')
+  })
+  
+  output$sbtestIndependence <- renderPrint({
+      d<-sbdatasetInput()
+      sb_test_independence(d, alpha = input$sig)
+  })
+  
 }
 
   

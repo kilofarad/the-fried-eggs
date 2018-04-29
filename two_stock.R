@@ -52,7 +52,7 @@ test_independence <- function(s1, s2, yearly = TRUE, breaks1=2, breaks2=2, merge
 adv_test_independence <- function(s1, s2, replicates = 10, alpha = 0.05){
   dcor.test(s1, s2, R=replicates)->d
   cat(paste('Distance correlation coefficient:',d$statistic,'\n'))
-  cat(paste('P-value:',d$p.value))
+  cat(paste('P-value:',signif(d$p.value,2)))
   if(d$p.value>alpha) cat('\nThus, we do not reject the null hypothesis that the log returns for the two stocks are independent.')
   else cat('\nThus, we reject the null hypothesis that the log returns for the two stocks are independent.')
 }
@@ -84,6 +84,20 @@ bin_me_daddy <- function(log_returns, init_bin_count = 30, min_bin_value = 3){
   if(tail(h$breaks, n=1) %in% new_breaks) new_breaks = replace(new_breaks, length(new_breaks), tail(h$breaks, n=1))
   if(max(log_returns) > tail(new_breaks, n = 1)) new_breaks = replace(new_breaks, length(new_breaks), max(log_returns))
   hist(log_returns, breaks = new_breaks, plot = TRUE)
+}
+
+sb_join <- function(dataset){
+  merge(dataset, superbowl)
+}
+
+sb_test_independence <- function(dataset, alpha){
+  c(min(dataset$Returns)-1e-5,0,max(dataset$Returns))->br
+  cut(dataset$Returns, br, labels = list('Bearish','Bullish')) -> dataset$BorB
+  table(dataset$BorB, dataset$Winning.Conference) -> ContingencyTable
+  print(ContingencyTable)
+  chisq.test(ContingencyTable)->c
+  cat(paste("Results of", c$method,'\n'))
+  cat(paste('P-value: ', round(c$p.value,3)))
 }
 
 #test_means(dji, spx, 0.05, yearly=FALSE)
