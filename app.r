@@ -13,7 +13,7 @@ source('load_csvs.R')
 source('two_stock.R')
 
 ###USER INTERFACE###
-ui <- navbarPage("The Fried Eggs",
+ui <- navbarPage(title = "The Fried Eggs",
                  tabPanel("Stock Analyses",
                           sidebarLayout(
                             #SIDEBAR
@@ -82,16 +82,16 @@ ui <- navbarPage("The Fried Eggs",
                                                              value = FALSE)),
                               
                               conditionalPanel('input.stocks == 2 && input.tab_selected == 2',
-                                            checkboxInput(inputId = 'dcor', 
-                                                          label = 'Perform a distance correlation test for independence (not recommended for daily data)', 
-                                                          value = FALSE)),
-
+                                               checkboxInput(inputId = 'dcor', 
+                                                             label = 'Perform a distance correlation test for independence (not recommended for daily data)', 
+                                                             value = FALSE)),
+                              
                               conditionalPanel('input.dcor && input.tab_selected == 2',
-                                             sliderInput(inputId = 'replicates',
-                                                          label = "Replicates to perform for distance correlation test (Higher values will give a more precise p-value)",
-                                                          min = 5,
-                                                          max = 300,
-                                                          value = 100)),
+                                               sliderInput(inputId = 'replicates',
+                                                           label = "Replicates to perform for distance correlation test (Higher values will give a more precise p-value)",
+                                                           min = 5,
+                                                           max = 300,
+                                                           value = 100)),
                               
                               conditionalPanel('input.tab_selected != 1',
                                                sliderInput(inputId = "sig",
@@ -114,7 +114,7 @@ ui <- navbarPage("The Fried Eggs",
                                          conditionalPanel("input.stocks == 1",
                                                           plotOutput("histPlot"),
                                                           plotOutput("normPlot")
-                                                          ),
+                                         ),
                                          conditionalPanel("input.stocks == 2",
                                                           plotOutput("histPlot1"), plotOutput("histPlot2")
                                          )
@@ -124,13 +124,13 @@ ui <- navbarPage("The Fried Eggs",
                                                           verbatimTextOutput("goodnessFit"),
                                                           verbatimTextOutput("confidenceIntMean"),
                                                           verbatimTextOutput("confidenceIntVar")
-                                                          ),
-                                        conditionalPanel("input.stocks == 2",
-                                                         verbatimTextOutput("testMeans"),
-                                                         conditionalPanel('!input.dcor',verbatimTextOutput("testIndependence")),
-                                                         conditionalPanel('!input.dcor',plotOutput("histPlot1_1"), plotOutput("histPlot2_1")),
-                                                         conditionalPanel('input.dcor',verbatimTextOutput("advtestIndependence"))
-                                                  )
+                                         ),
+                                         conditionalPanel("input.stocks == 2",
+                                                          verbatimTextOutput("testMeans"),
+                                                          conditionalPanel('!input.dcor',verbatimTextOutput("testIndependence")),
+                                                          conditionalPanel('!input.dcor',plotOutput("histPlot1_1"), plotOutput("histPlot2_1")),
+                                                          conditionalPanel('input.dcor',verbatimTextOutput("advtestIndependence"))
+                                         )
                                 ),
                                 tabPanel('Regression', value = 3,
                                          conditionalPanel("input.stocks == 1",
@@ -148,21 +148,39 @@ ui <- navbarPage("The Fried Eggs",
                               )
                             )
                           )
+                 ),
+                 tabPanel('Sports Analysis',
+                          sidebarLayout(sidebarPanel(selectizeInput(inputId = "sbdataset",
+                                                                    label = "Choose a dataset:",
+                                                                    choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
+                                                                                   `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
+                                                                                   `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
+                                                                    selected = "S&P 500 (SPX)"),
+                                                     
+                                                     conditionalPanel('input.sb_tab_selected == 1',
+                                                                      sliderInput(inputId = "sbbins",
+                                                                                  label = "Number of histogram bins:",
+                                                                                  min = 1,
+                                                                                  max = 15,
+                                                                                  value = 5)),
+                                                     
+                                                     sliderInput(inputId = "sbconf",
+                                                                 label = "Confidence level",
+                                                                 min = 90,
+                                                                 max = 100,
+                                                                 value = 95)
                           ),
-                  tabPanel('Sports Analysis',
-                           sidebarLayout(sidebarPanel(selectizeInput(inputId = "sbdataset",
-                                                                     label = "Choose a dataset:",
-                                                                     choices = list(`Stock Market Indices` = c("S&P 500 (SPX)", "Dow-Jones Industrial Average (DJI)", "NASDAQ (NDQ)"),
-                                                                                    `Industry Indices/ETFs` = c("Tech Industry (IYW)", "Financial Services (IYF)", "Natural Resources (MXI)", "Consumer Staples (XLP)", "Utilities (XLU)", "Dow Jones Utilities Average (DJU)"),
-                                                                                    `Publicly Traded Sports Companies` = c("Nike (NKE)", "Dick's Sporting Goods (DKS)", "Footlocker (FL)", "Lululemon (LULU)", "Underarmor (UAA)")), 
-                                                                     selected = "S&P 500 (SPX)")
-                                                      ),
-                                        
-                                         mainPanel(verbatimTextOutput("sbtestIndependence"))
-                                         )
-                           )
+                          
+                          mainPanel(tabsetPanel(
+                            tabPanel(title = 'General', value = 1,
+                                     verbatimTextOutput("sbtestIndependence"),
+                                     plotOutput("sbHist")),
+                            tabPanel(title = "Regression", value = 2),
+                            id = 'sb_tab_selected')))),
+                 
+                 tags$head(tags$style(HTML("pre { word-break: normal; white-space: pre-wrap; }")))
+                 
 )
-
 ###DATA PRE-PROCESSING
 #READ DATA FROM CSV
 source('load_csvs.R')
@@ -246,8 +264,7 @@ server <- function(input, output, session){
   output$goodnessFit <- renderPrint({
     dataset <- datasetInput()
     x <- dataset$Returns
-    bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    if(input$tab_selected == 2) binned = bin_me_daddy(x, input$bins1, input$min_bin_count)
+    binned = bin_me_daddy(x, input$bins1, input$min_bin_count)
     
     bins <- binned$breaks
     observed_freq <- binned$counts
@@ -398,11 +415,24 @@ server <- function(input, output, session){
               paste('\n\n',100*(1-input$sig),'% Confidence Intervals:\nSlope: [',signif(conf[2,1],3),', ',signif(conf[2,2],3),']\nIntercept: [',signif(conf[1,1],3),', ',signif(conf[1,2],3),']',sep = "")))
   })
   
+  bin_me_1 <- reactive({
+    x = datasetsInput()$Returns.x
+    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
+    else bins = seq(min(x), max(x), length.out = input$bins1 + 1)
+    return(bins)
+  })
+  
+  bin_me_2 <- reactive({
+    x = datasetsInput()$Returns.y
+    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
+    else bins = seq(min(x), max(x), length.out = input$bins2 + 1)
+    return(bins)
+  })
+  
   output$histPlot1 <- renderPlot({
     dataset <- datasetsInput()
     x <- dataset$Returns.x
-    bins <- seq(min(x), max(x), length.out = input$bins1 + 1)
-    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
+    bins = bin_me_1()
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[1]),
          main = paste("Histogram for log returns of",input$datasets[1]))
@@ -419,12 +449,11 @@ server <- function(input, output, session){
          main = paste("Histogram for log returns of",input$datasets[2]))
     
   })
-
+  
   output$histPlot1_1 <- renderPlot({
     dataset <- datasetsInput()
     x <- dataset$Returns.x
-    bins <- seq(min(x), max(x), length.out = input$bins1 + 1)
-    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins1, input$min_bin_count)$breaks
+    bins = bin_me_1()
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[1]),
          main = paste("Histogram for log returns of",input$datasets[1]))
@@ -434,8 +463,7 @@ server <- function(input, output, session){
   output$histPlot2_1 <- renderPlot({
     dataset <- datasetsInput()
     x <- dataset$Returns.y
-    bins <- seq(min(x), max(x), length.out = input$bins2 + 1)
-    if(input$tab_selected == 2) bins = bin_me_daddy(x, input$bins2, input$min_bin_count)$breaks
+    bins = bins = bin_me_2()
     hist(x, breaks = bins, col = "#75AADB", border = "white",
          xlab = paste("Log returns for",input$datasets[2]),
          main = paste("Histogram for log returns of",input$datasets[2]))
@@ -444,17 +472,15 @@ server <- function(input, output, session){
   
   output$testMeans <- renderPrint({
     d<-datasetsInput()
-    test_means(d$Returns.x, d$Returns.y, input$sig, yearly = input$yearly)
-    })
+    test_means(d$Returns.x, d$Returns.y, input$sig)
+  })
   
   output$testIndependence <- renderPrint({
     d<-datasetsInput()
-    breaks1 = input$bins1
-    breaks2 = input$bins2
+    breaks1 = bin_me_1()
+    breaks2 = bin_me_2()
     test_independence(d$Returns.x, d$Returns.y, 
-                      yearly=input$yearly, 
                       breaks1 = breaks1, breaks2 = breaks2, 
-                      merge_bins = TRUE, mbc=input$min_bin_count, 
                       showCT = input$showCT, alpha = input$sig)
   })
   
@@ -496,8 +522,31 @@ server <- function(input, output, session){
   })
   
   output$sbtestIndependence <- renderPrint({
-      d<-sbdatasetInput()
-      sb_test_independence(d, alpha = input$sig)
+    d<-sbdatasetInput()
+    sb_test_independence(d, conf = input$sbconf)
+  })
+  
+  output$sbHist <- renderPlot({
+    d<-sbdatasetInput()
+    xmin = min(d[,"Returns"])
+    xmax = max(d[,"Returns"])
+    a = d[d$Winning.Conference == 'AFL','Returns']
+    n = d[d$Winning.Conference == 'NFL','Returns']
+    bins = seq(xmin, xmax, length.out = input$sbbins + 1)
+    hist(d[,"Returns"], breaks = bins, plot = F)->h
+    hist(a,  breaks = bins, col=rgb(0,0,1,1/4), ylim = c(0,max(h$counts)),
+         xlab = paste("Annual Log Returns for",input$sbdataset),
+         main = "Annual Log Returns by League of SuperBowl Victor")
+    hist(n, breaks = bins, col=rgb(1,0,0,1/4), add = T)
+    legend('topleft',c('NFL Superbowl Victory','AFL Superbowl Victory'),
+           fill = rgb(1:0,0,0:1,0.4), bty = 'n',
+           border = NA)
+  })
+  
+  sbreg = reactive({
+    d = sbdatasetInput()
+    dummy_bool = grepl('NFL', d$Winning.Conference, fixed = TRUE)
+    dummy_ones = rep(1, length(d$Winning.Conference))
   })
   
 }
