@@ -8,6 +8,8 @@
 #app.r
 
 library(shiny) #load shiny package
+source('two_stock.R')
+source('load_csvs.R')
 ###USER INTERFACE###
 ui <- pageWithSidebar(
   

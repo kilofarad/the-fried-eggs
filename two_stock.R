@@ -1,4 +1,4 @@
-setwd("~/Documents/nicolaus copernicus/hmwk/r/the-fried-eggs")
+#setwd("~/Documents/nicolaus copernicus/hmwk/r/the-fried-eggs")
 require(energy)
 source('load_csvs.R')
 
