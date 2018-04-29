@@ -268,26 +268,18 @@ server <- function(input, output, session){
     dataset <- datasetInput()
     x <- dataset$Returns
     bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    if(input$tab_selected == 2) p1 = bin_me_daddy(x, input$bins1, input$min_bin_count)
-
+    if(input$tab_selected == 2) binned_stocks = bin_me_daddy(x, input$bins1, input$min_bin_count)
     
-    num_rows <- length(p1$counts)
-    cumulative_probs <- pnorm(p1$breaks, mean = mean(x), sd = sd(x))
+    num_rows <- length(binned_stocks$counts)
+    cumulative_probs <- pnorm(binned_stocks$breaks, mean = mean(x), sd = sd(x))
+    cumulative_probs[1] <- 0
+    cumulative_probs[num_rows+1] <- 1
     
-    remove_cumulative <- 2
+    non_cumulative_probs = diff(cumulative_probs)
     
-    non_cumulative_probs <- cumulative_probs
-    
-    while(remove_cumulative < num_rows){
-      non_cumulative_probs[remove_cumulative] <- cumulative_probs[remove_cumulative] - cumulative_probs[remove_cumulative-1]
-      remove_cumulative <- remove_cumulative + 1
-    }
-    non_cumulative_probs[num_rows] <- 1 - cumulative_probs[num_rows-1]
-    non_cumulative_probs <- non_cumulative_probs[-length(non_cumulative_probs)]
-    
-    a <- chisq.test(p1$counts, p=non_cumulative_probs, simulate.p.value=TRUE)
-    
-    print(a)
+    goodnessOfFit<- chisq.test(binned_stocks$counts, p=non_cumulative_probs, simulate.p.value=FALSE)
+    cat(paste('Goodness of Fit Results for Normal Distribution:\n'),sep="")
+    print(goodnessOfFit)
   
   })
   
