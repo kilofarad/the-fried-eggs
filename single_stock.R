@@ -85,12 +85,15 @@ goodness_of_fit <-function(symbol, bin_count, min_bin, significance){
   goodnessOfFit<- chisq.test(binned_stocks$counts, p=non_cumulative_probs, simulate.p.value=FALSE)
   
   #Output results
-  cat(paste('Goodness of Fit Results for Normal Distribution:\n'),sep="")
-  print(goodnessOfFit)
+  cat(paste('Chi-Squared Goodness of Fit Results for Normal Distribution:'),sep="")
+  cat(paste('\nSelected bin count: ', bin_count), sep="")
+  cat(paste('\nProcessed bin count (combine bins with low frequencies): ', num_rows,'\n'),sep="")
+  cat(paste('\nData Source: ', goodnessOfFit$data.name), sep="")
+  cat(paste('\nX-squared: ',goodnessOfFit$statistic,'   p-value: ', goodnessOfFit$p.value),sep="")
   if(goodnessOfFit$p.value <= significance){
-    cat(paste('\n',goodnessOfFit$p.value," <= ",significance," so, the null hypothesis is rejected. There is sufficient evidence that the data does not fit a normal distribution."),sep="")
+    cat(paste('\n\n',goodnessOfFit$p.value," <= ",significance," so, the null hypothesis is rejected. There is sufficient evidence that the data does not fit a normal distribution."),sep="")
   }
   else{
-    cat(paste('\n',goodnessOfFit$p.value," > ",significance," so, we fail to reject the null hypothesis. There is not sufficient evidence that the data does not fit a normal distribution."),sep="")
+    cat(paste('\n\n',goodnessOfFit$p.value," > ",significance," so, we fail to reject the null hypothesis. There is not sufficient evidence that the data does not fit a normal distribution."),sep="")
   }
 }
