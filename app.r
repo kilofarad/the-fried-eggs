@@ -267,7 +267,7 @@ server <- function(input, output, session){
   
   output$goodnessFit <- renderPrint({
     dataset <- datasetInput()
-    results <- goodness_of_fit(dataset, input$bins, input$min_bin_count, input$tab_selected)
+    results <- goodness_of_fit(dataset, input$bins, input$min_bin_count, input$tab_selected, input$sig)
   })
   
   output$confidenceIntMean <- renderPrint({
@@ -316,6 +316,7 @@ server <- function(input, output, session){
          main = 'Residual Plot for Linear Regression',
          xlab = 'Time',
          ylab =  'Regression Residuals')
+    abline(h = 0)
   })
   
   output$oneSampleRegressionSummary <- renderPrint({

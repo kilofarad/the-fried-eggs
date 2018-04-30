@@ -65,11 +65,12 @@ confidence_interval_var<-function(symbol, test_type, significance){
   }
 }
 
-goodness_of_fit <-function(symbol, bin_count, min_bin, tab_selected){
+goodness_of_fit <-function(symbol, bin_count, min_bin, tab_selected, significance){
   x <- symbol$Returns
   bins <- seq(min(x), max(x), length.out = bin_count + 1)
-  if(tab_selected == 2) binned_stocks = bin_me_daddy(x, bin_count, min_bin)
-  
+  if(tab_selected == 2) {
+    binned_stocks = bin_me_daddy(x, bin_count, min_bin)
+  }
   num_rows <- length(binned_stocks$counts)
   cumulative_probs <- pnorm(binned_stocks$breaks, mean = mean(x), sd = sd(x))
   cumulative_probs[1] <- 0
@@ -80,4 +81,10 @@ goodness_of_fit <-function(symbol, bin_count, min_bin, tab_selected){
   goodnessOfFit<- chisq.test(binned_stocks$counts, p=non_cumulative_probs, simulate.p.value=FALSE)
   cat(paste('Goodness of Fit Results for Normal Distribution:\n'),sep="")
   print(goodnessOfFit)
+  if(goodnessOfFit$p.value <= significance){
+    cat(paste('\n',goodnessOfFit$p.value," <= ",significance," so, the null hypothesis is rejected. There is sufficient evidence that the data does not fit a normal distribution."),sep="")
+  }
+  else{
+    cat(paste('\n',goodnessOfFit$p.value," > ",significance," so, we fail to reject the null hypothesis. There is not sufficient evidence that the data does not fit a normal distribution."),sep="")
+  }
 }
