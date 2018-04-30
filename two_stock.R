@@ -80,6 +80,7 @@ test_independence <- function(s1, s2, breaks1=2, breaks2=2, showCT = FALSE, alph
 #Test for independence using distance correlation test
 adv_test_independence <- function(s1, s2, replicates = 10, alpha = 0.05){
   dcor.test(s1, s2, R=replicates)->d
+  cat('The distance correlation for two continuous variables is very much like a correlation coefficient, except a value of 0 on the distance correlation coefficient corresponds to a finding of independence between the two variables, which cannot be said of a linear correlation coefficient.\n\n')
   cat(paste('Distance correlation coefficient:',d$statistic,'\n'))
   cat(paste('P-value:',signif(d$p.value,2)))
   if(d$p.value>alpha) cat('\nThus, we do not reject the null hypothesis that the log returns for the two stocks are independent.')

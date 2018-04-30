@@ -185,13 +185,17 @@ ui <- navbarPage(title = "The Fried Eggs",
                                                                                   min = 1,
                                                                                   max = 15,
                                                                                   value = 5)),
-                                                     
-                                                     sliderInput(inputId = "sbconf",
-                                                                 #Select confidence level
-                                                                 label = "Confidence level",
-                                                                 min = 90,
-                                                                 max = 100,
-                                                                 value = 95)
+                                                     conditionalPanel('input.sb_tab_selected == 2',
+                                                                      radioButtons(inputId = "sbsimple", label = "Type of Linear Regression to Run",
+                                                                                                                choices = list("Simple" = TRUE, "Multiple" = FALSE),
+                                                                                                                selected = FALSE),
+                                                                      sliderInput(inputId = "sbconf",
+                                                                                  #Select confidence level
+                                                                                  label = "Confidence level",
+                                                                                  min = 90,
+                                                                                  max = 100,
+                                                                                  value = 95)
+                                                                      )
                           ),
                           
                           mainPanel(tabsetPanel(
@@ -513,8 +517,12 @@ server <- function(input, output, session){
   sbreg = reactive({
     d = sbdatasetInput()
     dummy_bool = grepl('NFL', d$Winning.Conference, fixed = TRUE) #dummy variable 
-    diff = d$Diff
-    lm(d$Returns ~ diff + dummy_bool) -> lm
+    diff = d$Dif
+    if(input$sbsimple){
+      diff[!(dummy_bool)] = -1*diff[!(dummy_bool)]
+      lm(d$Returns ~ diff) -> lm
+    }
+    else lm(d$Returns ~ diff + dummy_bool) -> lm
     return(lm)
   })
   
@@ -523,42 +531,69 @@ server <- function(input, output, session){
     sbreg()->reg #calls two_stock.R
     summary(reg)$r.squared ->r2
     confint(reg, level = (input$sbconf/100)) -> conf
-    cat(paste('Least Squares Regression Formula: y =',signif(reg$coefficients[2],3), 'x_1 +',signif(reg$coefficients[3],3),'x_2 +',signif(reg$coefficients[1],3),
-              '\nR-squared:',signif(r2,3)),'\nWhere x_1 is the point difference in the Super Bowl and x_2 is 1 if an NFL team won, or 0 if an AFL team won.',
-        paste('\n\n',input$sbconf,'% Confidence Intervals:\nSlope for Point Difference: [',signif(conf[2,1],3),', ',signif(conf[2,2],3),
-              ']\nSlope for NFL Indicator: [', signif(conf[3,1],3),', ',signif(conf[3,2],3),
-              ']\nIntercept: [',signif(conf[1,1],3),', ',signif(conf[1,2],3),']',sep = ""))
+    if(input$sbsimple){
+      cat(paste('Least Squares Regression Formula: y =',signif(reg$coefficients[2],3), 'x +',signif(reg$coefficients[1],3),
+                '\nR-squared:',signif(r2,3)),'\nWhere x is the point difference in the Super Bowl in favor of the NFL.',
+          paste('\n\n',input$sbconf,'% Confidence Intervals:\nSlope: [',signif(conf[2,1],3),', ',signif(conf[2,2],3),
+                ']\nIntercept: [',signif(conf[1,1],3),', ',signif(conf[1,2],3),']',sep = ""))
+    }
+    else{
+      cat(paste('Least Squares Regression Formula: y =',signif(reg$coefficients[2],3), 'x_1 +',signif(reg$coefficients[3],3),'x_2 +',signif(reg$coefficients[1],3),
+                '\nR-squared:',signif(r2,3)),'\nWhere x_1 is the point difference in the Super Bowl and x_2 is 1 if an NFL team won, or 0 if an AFL team won.',
+          paste('\n\n',input$sbconf,'% Confidence Intervals:\nSlope for Point Difference: [',signif(conf[2,1],3),', ',signif(conf[2,2],3),
+                ']\nSlope for NFL Indicator: [', signif(conf[3,1],3),', ',signif(conf[3,2],3),
+                ']\nIntercept: [',signif(conf[1,1],3),', ',signif(conf[1,2],3),']',sep = ""))
+    }
   })
   
   #Regression plot of super bowl wins and selected stock
   output$sbRegressionPlot <-renderPlot({
     sbreg()->reg #calls two_stock.R
-    plot(reg$model[reg$model$dummy_bool,2], reg$model[reg$model$dummy_bool,1],
-         col = rgb(1,0,0,1),
-         main = 'Regression data with least-squares regression line',
-         xlab = "Point Difference in Super Bowl",
-         ylab = "Annual Log Returns of Selected Index/Stock")
-    points(reg$model[!(reg$model$dummy_bool),2], reg$model[!(reg$model$dummy_bool),1], col = rgb(0,0,1,1))
-    abline(a = (reg$coefficients[1] + reg$coefficients[3]), b = reg$coefficients[2], lty=1, lwd=2, col = rgb(1,0.25, 0.25, 1))
-    abline(a = reg$coefficients[1], b = reg$coefficients[2], lty=1, lwd=2, col = rgb(0.25,0.25, 1, 1))
-    legend('bottomright',c('NFL Super Bowl Victory','AFL Super Bowl Victory'),
-           fill = rgb(1:0,0,0:1,0.4), bty = 'n',
-           border = NA)
+    if(input$sbsimple){
+      plot(reg$model[,2], reg$model[,1],
+           main = 'Regression data with least-squares regression line',
+           xlab = 'Point Difference in Favor of NFL',
+           ylab = "Annual Log Returns of Selected Stock/Index")
+      abline(reg)
+      abline(v=0)
+    }
+    else{
+      plot(reg$model[reg$model$dummy_bool,2], reg$model[reg$model$dummy_bool,1],
+           col = rgb(1,0,0,1),
+           main = 'Regression data with least-squares regression line',
+           xlab = "Point Difference in Super Bowl",
+           ylab = "Annual Log Returns of Selected Index/Stock")
+      points(reg$model[!(reg$model$dummy_bool),2], reg$model[!(reg$model$dummy_bool),1], col = rgb(0,0,1,1))
+      abline(a = (reg$coefficients[1] + reg$coefficients[3]), b = reg$coefficients[2], lty=1, lwd=2, col = rgb(1,0.25, 0.25, 1))
+      abline(a = reg$coefficients[1], b = reg$coefficients[2], lty=1, lwd=2, col = rgb(0.25,0.25, 1, 1))
+      legend('bottomright',c('NFL Super Bowl Victory','AFL Super Bowl Victory'),
+             fill = rgb(1:0,0,0:1,0.4), bty = 'n',
+             border = NA)
+    }
     abline(h=0)
   })
   
   #Residual plot of super bowl wins and selected stock
   output$sbResidualPlot <- renderPlot({
     sbreg()->reg #calls two_stock.R
-    plot(reg$model[reg$model$dummy_bool,2],reg$residuals[reg$model$dummy_bool],
-         main = 'Residual Plots for Linear Regression',
-         xlab = "Point Difference in Super Bowl",
-         ylab = 'Regression Residuals', col = rgb(1,0,0,1))
-    points(reg$model[!(reg$model$dummy_bool),2], reg$residuals[!(reg$model$dummy_bool)], col = rgb(0,0,1,1))
-    abline(h=0)
-    legend('bottomright',c('NFL Super Bowl Victory','AFL Super Bowl Victory'),
-           fill = rgb(1:0,0,0:1,0.4), bty = 'n',
-           border = NA)
+    if(input$sbsimple){
+      plot(reg$model[,2], reg$residuals,
+           main = 'Residual Plots for Linear Regression',
+           xlab = "Point Difference in Favor of NFL",
+           ylab = 'Regression Residuals')
+      abline(h=0)
+      abline(v=0)
+    }
+    else{
+      plot(reg$model[reg$model$dummy_bool,2],reg$residuals[reg$model$dummy_bool],
+              main = 'Residual Plots for Linear Regression',
+              xlab = "Point Difference in Super Bowl",
+              ylab = 'Regression Residuals', col = rgb(1,0,0,1))
+      points(reg$model[!(reg$model$dummy_bool),2], reg$residuals[!(reg$model$dummy_bool)], col = rgb(0,0,1,1))
+      abline(h=0)
+      legend('bottomright',c('NFL Super Bowl Victory','AFL Super Bowl Victory'),
+             fill = rgb(1:0,0,0:1,0.4), bty = 'n',
+             border = NA)}
   })
   
 }
