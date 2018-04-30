@@ -43,21 +43,22 @@ confidence_interval_mean<-function(symbol, test_type, significance){
 confidence_interval_var<-function(symbol, test_type, significance){
   dlr <- log_return(symbol)
   length(dlr) -> n
+  print(significance)
   if(test_type == 'Two-sided'){
-    vlower <- ((n-1)*var(dlr))/qchisq(significance/2, n-1)
+    vlower <- ((n-1)*var(dlr))/qchisq(1-significance/2, n-1)
     vupper <- ((n-1)*var(dlr))/qchisq(significance/2, n-1)
     vlower = signif(vlower,3)
     vupper = signif(vupper,3)
     cat(paste((1-significance)*100,"% two-sided confidence interval for variance of log returns:"), sep = "")
     cat(paste('\n[',vlower,', ',vupper,']', sep =""))
   }
-  else if(test == 'Upper-bound'){
+  else if(test_type == 'Upper-bound'){
     vupper <- ((n-1)*var(dlr))/qchisq(1-significance, n-1)
     vupper = signif(vupper, 3)
     cat(paste((1-significance)*100,"% upper-bound confidence interval for variance of log returns:"), sep = "")
     cat(paste('\n[-infinity, ', vupper,']', sep=""))
   }
-  else if(test == 'Lower-bound'){
+  else if(test_type == 'Lower-bound'){
     vlower <- ((n-1)*var(dlr))/qchisq(significance, n-1)
     vlower = signif(vlower, 3)
     cat(paste((1-significance)*100,"% lower-bound confidence interval for variance of log returns:"), sep="")

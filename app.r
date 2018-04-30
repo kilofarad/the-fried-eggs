@@ -262,7 +262,7 @@ server <- function(input, output, session){
   output$normPlot <- renderPlot({
     dataset <- datasetInput()
     qqnorm(dataset$Returns, col = "#75AADB",
-           main = "Normality plot for log returns in selected tech stock data")
+           main = "Normality plot for log returns in selected stock data")
   })
   
   output$goodnessFit <- renderPrint({
